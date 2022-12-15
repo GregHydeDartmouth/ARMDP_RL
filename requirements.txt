@@ -1,3 +1,4 @@
 gurobipy
 tqdm
 graphviz
+gym
