@@ -22,17 +22,17 @@ class AbstractionMachine():
                 state, action, reward, next_state = triple
                 if i == 0:
                     if state not in state_mapping:
-                        state_mapping[state] = str(state_num)
+                        state_mapping[str(state)] = str(state_num)
                         state_num += 1
                 if action not in action_mapping:
-                    action_mapping[action] = str(action_num)
+                    action_mapping[str(action)] = str(action_num)
                     action_num += 1
                 if next_state not in state_mapping:
-                    state_mapping[next_state] = str(state_num)
+                    state_mapping[str(next_state)] = str(state_num)
                     state_num += 1
-                new_state = state_mapping[state]
-                new_action = action_mapping[action]
-                new_next_state = state_mapping[next_state]
+                new_state = state_mapping[str(state)]
+                new_action = action_mapping[str(action)]
+                new_next_state = state_mapping[str(next_state)]
                 mapped_trajectory.append([new_state, new_action, reward,new_next_state])
             mapped_trajectories.append(mapped_trajectory)
         return action_mapping, state_mapping, mapped_trajectories
