@@ -6,8 +6,46 @@ from collections import defaultdict
 
 class AbstractionMachine():
     def __init__(self, trajectories, verbose=False):
-        self.exemplar_trajectories = trajectories
         self.verbose = verbose
+        self.action_mapping, self.state_mapping, self.exemplar_trajectories = \
+            self._make_mappings(trajectories)
+
+    def _make_mappings(self, trajectories):
+        action_mapping = dict()
+        state_mapping = dict()
+        mapped_trajectories = []
+        state_num = 0
+        action_num = 0
+        for traj in trajectories:
+            mapped_trajectory = []
+            for i, triple in enumerate(traj):
+                state, action, reward, next_state = triple
+                if i == 0:
+                    if state not in state_mapping:
+                        state_mapping[state] = str(state_num)
+                        state_num += 1
+                if action not in action_mapping:
+                    action_mapping[action] = str(action_num)
+                    action_num += 1
+                if next_state not in state_mapping:
+                    state_mapping[next_state] = str(state_num)
+                    state_num += 1
+                new_state = state_mapping[state]
+                new_action = action_mapping[action]
+                new_next_state = state_mapping[next_state]
+                mapped_trajectory.append([new_state, new_action, reward,new_next_state])
+            mapped_trajectories.append(mapped_trajectory)
+        return action_mapping, state_mapping, mapped_trajectories
+
+    def _write_mappings(self):
+        actions_file = open('action_mapping.txt', 'w')
+        for action, mapping in self.action_mapping.items():
+            actions_file.write('{}->{}\n'.format(action, mapping))
+        actions_file.close()
+        states_file = open('state_mapping.txt', 'w')
+        for state, mapping in self.state_mapping.items():
+            states_file.write('{}->{}\n'.format(state, mapping))
+        states_file.close()
 
     def _get_transition_splits(self, drp, depth):
         choice_table = dict()
@@ -52,7 +90,7 @@ class AbstractionMachine():
                 # Trajectory continuity
                 for prev_choice_level, prev_levels in prev_choices_by_next_state.items():
                     levels = choices_by_state[prev_choice_level]
-                    drp.addConstr(quicksum(prev_levels) == quicksum(levels), name='context constraint j==i\'')
+                    drp.addConstr(quicksum(prev_levels) == quicksum(levels), name='context_constraint_j==i\'')
                     constraints += 1
                 prev_choices_by_next_state = choices_by_next_state
 
@@ -95,7 +133,6 @@ class AbstractionMachine():
     def resolve_reward_conflicts(self, depth=2, write_file=False, make_graph=False):
         print("\nMaking Dual Reward Problem")
 
-
         while True:
             drp = Model("Dual Reward Problem")
             # get split states
@@ -105,6 +142,7 @@ class AbstractionMachine():
             drp.setObjective(z, GRB.MINIMIZE)
             if write_file:
                 drp.write('model_with_depth={}.lp'.format(depth))
+                self._write_mappings()
             drp.optimize()
             var_dict = dict()
             try:
