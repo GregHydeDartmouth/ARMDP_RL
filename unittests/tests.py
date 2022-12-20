@@ -1,5 +1,5 @@
 import unittest
-from abstract_machine import AbstractionMachine
+from abstraction_machines.abstract_machine import AbstractionMachine
 
 class test_abstract_q_learning(unittest.TestCase):
     def est_powerpoint_problem(self):
