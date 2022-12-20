@@ -21,13 +21,13 @@ class AbstractionMachine():
             for i, triple in enumerate(traj):
                 state, action, reward, next_state = triple
                 if i == 0:
-                    if state not in state_mapping:
+                    if str(state) not in state_mapping:
                         state_mapping[str(state)] = str(state_num)
                         state_num += 1
-                if action not in action_mapping:
+                if str(action) not in action_mapping:
                     action_mapping[str(action)] = str(action_num)
                     action_num += 1
-                if next_state not in state_mapping:
+                if str(next_state) not in state_mapping:
                     state_mapping[str(next_state)] = str(state_num)
                     state_num += 1
                 new_state = state_mapping[str(state)]
