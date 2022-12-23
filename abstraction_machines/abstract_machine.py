@@ -262,7 +262,6 @@ class AbstractionMachine():
             if make_graph:
                 self.build_abstract_MDP_graph(var_dict, reward_table)
             break
-        x = input()
         return
 
     def build_abstract_MDP(self, var_dict, reward_table):
