@@ -15,43 +15,14 @@ class AbstractionMachine():
                 raise Exception("can not run q_vals without action_size")
             else:
                 self.action_set = action_set
+                self.action_mapping = {}
+                for action in self.action_set:
+                    self.action_mapping[str(action)] = action
         self.gamma = gamma
-        #self.action_mapping = dict()
-        #self.state_mapping = dict()
-        #self.state_num = 0
-        #self.action_num = 0
         self.default_triple_set = set()
         self.exemplar_trajectories = trajectories
         self.current_state = None
         self.depth = 2
-
-    '''
-    def _make_mappings(self, trajectories):
-        mapped_trajectories = []
-        for traj in trajectories:
-            mapped_trajectory = []
-            for i, triple in enumerate(traj):
-                state, action, reward, next_state = triple
-                if i == 0:
-                    if str(state) not in self.state_mapping:
-                        self.state_mapping[str(state)] = str(self.state_num)
-                        self.state_mapping[str(self.state_num)] = str(state)
-                        self.state_num += 1
-                if str(action) not in self.action_mapping:
-                    self.action_mapping[str(action)] = str(self.action_num)
-                    self.action_mapping[str(self.action_num)] = str(action)
-                    self.action_num += 1
-                if str(next_state) not in self.state_mapping:
-                    self.state_mapping[str(next_state)] = str(self.state_num)
-                    self.state_mapping[str(self.state_num)] = str(next_state)
-                    self.state_num += 1
-                new_state = self.state_mapping[str(state)]
-                new_action = self.action_mapping[str(action)]
-                new_next_state = self.state_mapping[str(next_state)]
-                mapped_trajectory.append([new_state, new_action, reward,new_next_state])
-            mapped_trajectories.append(mapped_trajectory)
-        return mapped_trajectories
-    '''
 
     def _write_mappings(self):
         actions_file = open('action_mapping.txt', 'w')
@@ -149,7 +120,7 @@ class AbstractionMachine():
         self.abstract_Q_table = defaultdict(lambda: defaultdict(float))
         for state in self.abstract_table:
             for action in self.action_set:
-                self.abstract_Q_table[state][action] = 0
+                self.abstract_Q_table[state][str(action)] = 0
         print('solving abstract MDP')
         while True:
             delta = 0
@@ -178,6 +149,7 @@ class AbstractionMachine():
         max_action = None
         equivalent_actions = []
         for action in self.action_set:
+            action = str(action)
             val = round(self.abstract_Q_table[state][action], 5)
             if max_qsa is None:
                 max_qsa = val
@@ -192,6 +164,7 @@ class AbstractionMachine():
                     equivalent_actions.append((val, action))
         if len(equivalent_actions) > 1:
             max_qsa, max_action = random.choice(equivalent_actions)
+            max_action = self.action_mapping[max_action]
         return max_qsa, max_action
 
     def get_action(self, state, eps = 0.1):
@@ -204,17 +177,18 @@ class AbstractionMachine():
             max_qsa, max_action = self._abstract_qsa_max(self.current_state)
             return max_action
 
-    def add_trajectory(self, trajectory, write_file = False, make_graph = False):
+    def add_trajectory(self, trajectory, resolve_non_zero=False, write_file = False, make_graph = False):
         resolve = False
         add_traj = False
         hold_current_state = self.current_state
         self.current_state = '{}^[{}]'.format(trajectory[0][0], 0)
         for triple in trajectory:
+            state, action, reward, next_state = triple
+            action = str(action)
             if str(triple) not in self.default_triple_set:
                 self.default_triple_set.add(str(triple))
                 add_traj = True
-            state, action, reward, next_state = triple
-            conflict = self.step(state, action, reward, next_state)
+            conflict = self.step(state, action, reward, next_state, resolve_non_zero=resolve_non_zero)
             if conflict:
                 resolve = True
                 add_traj = True
@@ -225,7 +199,7 @@ class AbstractionMachine():
             self.resolve_reward_conflicts(write_file=write_file, make_graph=make_graph)
         self.current_state = hold_current_state
 
-    def step(self, state, action, reward, next_state):
+    def step(self, state, action, reward, next_state, resolve_non_zero=False):
         conflict = False
         if self.current_state is None:
             self.current_state = '{}^[{}]'.format(state, 0)
@@ -239,6 +213,9 @@ class AbstractionMachine():
                 current_level = self.current_state.split('^')[1]
                 next_state = '{}^{}'.format(next_state, current_level)
                 self.abstract_table[self.current_state][action][next_state].add(reward)
+                if reward != 0 and resolve_non_zero:
+                    # no actual conflict, just forcing a resolve if there is a new reward triple that changes q vals
+                    conflict = True
                 self.current_state = next_state
             else:
                 self.abstract_table[self.current_state][action][some_next_state].add(reward)
@@ -249,6 +226,9 @@ class AbstractionMachine():
             current_level = self.current_state.split('^')[1]
             next_state = '{}^{}'.format(next_state, current_level)
             self.abstract_table[self.current_state][action][next_state].add(reward)
+            if reward != 0 and resolve_non_zero:
+                # no actual conflict, just forcing a resolve if there is a new reward triple that changes q vals
+                conflict = True
             self.current_state = next_state
         return conflict
 
@@ -282,6 +262,7 @@ class AbstractionMachine():
             if make_graph:
                 self.build_abstract_MDP_graph(var_dict, reward_table)
             break
+        x = input()
         return
 
     def build_abstract_MDP(self, var_dict, reward_table):

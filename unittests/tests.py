@@ -119,33 +119,32 @@ class test_abstract_q_learning(unittest.TestCase):
         AM.add_trajectory(t3, make_graph=True)
 
     def test_one_traj_at_a_time(self):
-        actions = {'^': '^',
-                   'v': 'v',
-                   '<': '<',
-                   '>': '>',
-                   'o': 'o'}
-        t1 = [['1', actions['^'], 0, '4'],
-              ['4', actions['>'], 0, '5'],
-              ['5', actions['^'], 0, '8'],
-              ['8', actions['v'], 0, '5'],
-              ['5', actions['>'], 0, '6'],
-              ['6', actions['^'], 2, '9']]
-        AM = AbstractionMachine(run_q_vals=True, action_set=['^', 'v', '<', '>', 'o'], verbose=True)
-        action = AM.get_action('1', eps=0)
-        AM.add_trajectory(t1)
-        t2 = [['1', actions['^'], 0, '4'],
-              ['4', actions['>'], 0, '5'],
-              ['5', actions['>'], 0, '6'],
-              ['6', actions['o'], 0, '6'],
-              ['6', actions['^'], 1, '9']]
-        AM.add_trajectory(t2)
-        t3 = [['1', actions['v'], 0, '5'],
-              ['5', actions['>'], 0, '6'],
-              ['6', actions['o'], 0, '6'],
-              ['6', actions['^'], 0.5, '9']]
+        actions = {'^': 0,
+                   'v': 1,
+                   '<': 2,
+                   '>': 3,
+                   'o': 4}
+        t1 = [['[1]', actions['^'], 0, '[4]'],
+              ['[4]', actions['>'], 0, '[5]'],
+              ['[5]', actions['^'], 0, '[8]'],
+              ['[8]', actions['v'], 0, '[5]'],
+              ['[5]', actions['>'], 0, '[6]'],
+              ['[6]', actions['^'], 2, '[9]']]
+        AM = AbstractionMachine(run_q_vals=True, action_set=[0, 1, 2, 3, 4], verbose=True)
+        action = AM.get_action('[1]', eps=0)
+        AM.add_trajectory(t1, resolve_non_zero= True, make_graph=True)
+        t2 = [['[1]', actions['^'], 0, '[4]'],
+              ['[4]', actions['>'], 0, '[5]'],
+              ['[5]', actions['>'], 0, '[6]'],
+              ['[6]', actions['o'], 0, '[6]'],
+              ['[6]', actions['^'], 1, '[9]']]
+        AM.add_trajectory(t2, make_graph=True)
+        t3 = [['[1]', actions['v'], 1, '[5]'],
+              ['[5]', actions['>'], 0, '[6]'],
+              ['[6]', actions['o'], 0, '[6]'],
+              ['[6]', actions['^'], 2, '[9]']]
         AM.add_trajectory(t3, make_graph=True)
         AM.reset()
-        action = AM.get_action('1', eps=0)
-        AM.step('1',action, 0, '5')
-        action = AM.get_action('5')
-        print(action)
+        action = AM.get_action('[1]', eps=0)
+        AM.step('[1]',action, 0, '[5]')
+        action = AM.get_action('[5]')
