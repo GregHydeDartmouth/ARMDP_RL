@@ -10,6 +10,7 @@ class AbstractionMachine():
         self.run_q_vals = run_q_vals
         if self.run_q_vals:
             self.abstract_table = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+            self.abstract_Q_table = defaultdict(lambda: defaultdict(float))
             if action_set == None:
                 raise Exception("can not run q_vals without action_size")
             else:

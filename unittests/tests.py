@@ -131,6 +131,7 @@ class test_abstract_q_learning(unittest.TestCase):
               ['5', actions['>'], 0, '6'],
               ['6', actions['^'], 2, '9']]
         AM = AbstractionMachine(run_q_vals=True, action_set=['^', 'v', '<', '>', 'o'], verbose=True)
+        action = AM.get_action('1', eps=0)
         AM.add_trajectory(t1)
         t2 = [['1', actions['^'], 0, '4'],
               ['4', actions['>'], 0, '5'],
