@@ -147,7 +147,7 @@ class AbstractionMachine():
 
     def _solve_abstract_MDP(self, tf=None):
         self.abstract_Q_table = defaultdict(lambda: defaultdict(float))
-        for state in self.abstract_Q_table:
+        for state in self.abstract_table:
             for action in self.action_set:
                 self.abstract_Q_table[state][action] = 0
         print('solving abstract MDP')
