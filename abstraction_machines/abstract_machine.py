@@ -176,7 +176,7 @@ class AbstractionMachine():
         for action in self.action_set:
             action = str(action)
             val = round(self.abstract_Q_table[state][action], 5)
-            qsas[state] = val
+            qsas[action] = val
         return qsas
 
 
