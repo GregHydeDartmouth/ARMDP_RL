@@ -171,6 +171,15 @@ class AbstractionMachine():
             max_action = self.action_mapping[max_action]
         return max_qsa, max_action
 
+    def _abstract_qsas(self, state):
+        qsas = dict()
+        for action in self.action_set:
+            action = str(action)
+            val = round(self.abstract_Q_table[state][action], 5)
+            qsas[state] = val
+        return qsas
+
+
     def get_action(self, state, eps = 0.1):
         if random.random() < eps:
             action = random.choice(self.action_set)
@@ -180,6 +189,12 @@ class AbstractionMachine():
                 self.current_state = '{}^[{}]'.format(state, 0)
             max_qsa, max_action = self._abstract_qsa_max(self.current_state)
             return max_action
+
+    def get_state_policy(self, state):
+        if self.current_state is None:
+            self.current_state = '{}^[{}]'.format(state, 0)
+        policy_mapping = self._abstract_qsas(self.current_state)
+        return policy_mapping
 
     def add_trajectory(self, trajectory, resolve_non_zero=False, write_file = False, make_graph = False):
         resolve = False
