@@ -118,7 +118,7 @@ class test_abstract_q_learning(unittest.TestCase):
               ['6', actions['^'], 0.5, '9']]
         AM.add_trajectory(t3, make_graph=True)
 
-    def test_one_traj_at_a_time(self):
+    def est_one_traj_at_a_time(self):
         actions = {'^': 0,
                    'v': 1,
                    '<': 2,
@@ -148,3 +148,29 @@ class test_abstract_q_learning(unittest.TestCase):
         action = AM.get_action('[1]', eps=0)
         AM.step('[1]',action, 0, '[5]')
         action = AM.get_action('[5]')
+
+    def test_state_granularity(self):
+        t1 = [['1', '^', 0, '4'],
+              ['4', '>', 0, '5'],
+              ['5', '^', 0, '8'],
+              ['8', 'v', 0, '5'],
+              ['5', '>', 0, '6'],
+              ['6', '^', 2, '9']]
+        t2 = [['1', '^', 0, '4'],
+              ['4', '>', 0, '5'],
+              ['5', 'v', 0, '6'],
+              ['6', '>', 0, '8'],
+              ['8', 'v', 0, '7'],
+              ['7', 'v', 2, '9'],]
+        t3 = [['1', '^', 0, '4'],
+              ['4', '>', 0, '5'],
+              ['5', '>', 0, '6'],
+              ['6', 'o', 0, '6'],
+              ['6', '^', 1, '9']]
+        t4 = [['1', '^', 0, '4'],
+              ['4', '>', 0, '5'],
+              ['5', '>', 0, '6'],
+              ['6', '<', 0, '7'],
+              ['7', 'v', 1, '9']]
+        AM = AbstractionMachine([t1, t2, t3, t4], granularity='state', run_q_vals=True, action_set=['^', 'v', '<', '>', 'o'], verbose=True)
+        AM.resolve_reward_conflicts(make_graph=True)

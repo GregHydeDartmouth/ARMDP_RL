@@ -5,7 +5,7 @@ from graphviz import Digraph
 from collections import defaultdict
 
 class AbstractionMachine():
-    def __init__(self, trajectories = [], verbose=False, run_q_vals=False, action_set=None, gamma=0.9):
+    def __init__(self, trajectories = [], granularity='triple', verbose=False, run_q_vals=False, action_set=None, gamma=0.9):
         self.verbose = verbose
         self.run_q_vals = run_q_vals
         if self.run_q_vals:
@@ -21,6 +21,7 @@ class AbstractionMachine():
         self.gamma = gamma
         self.default_triple_set = set()
         self.exemplar_trajectories = trajectories
+        self.granularity=granularity
         self.current_state = None
         self.depth = 2
 
@@ -66,7 +67,10 @@ class AbstractionMachine():
                         choices_by_next_state[j].append(choice)
                         choice_mutex_dict['({}^[{}],{},{}^[{}])'.format(state, '', action, next_state, '')][i][j].append(choice)
                         if i != j:
-                            choice_types['({}^[{}],{},{}^[{}])'.format(state, i, action, next_state, j)].append(choice)
+                            if self.granularity=='triple':
+                                choice_types['({}^[{}],{},{}^[{}])'.format(state, i, action, next_state, j)].append(choice)
+                            elif self.granularity=='state':
+                                choice_types['{}^[{}])'.format(next_state, j)].append(choice)
                         choice_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = choice
                         reward_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = reward
                         reward_choice_dict['{},{}'.format(i,j)] = choice
