@@ -40,7 +40,10 @@ class AbstractionMachine():
         for i, traj in enumerate(self.exemplar_trajectories):
             for triple in traj:
                 state, action, reward, next_state = triple
-                conflict_table[(state, action, next_state)][reward].add(i)
+                if self.granularity =='triple':
+                    conflict_table[(state, action, next_state)][reward].add(i)
+                else:
+                    conflict_table[next_state][reward].add(i)
         conflicting_traj_idxs = set()
         for triple in conflict_table:
             if len(conflict_table[triple].keys()) > 1:
