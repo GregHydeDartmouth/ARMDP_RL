@@ -197,7 +197,8 @@ class AbstractionMachine():
         return policy_mapping
 
     def add_trajectory(self, trajectory, resolve_non_zero=False, write_file = False, make_graph = False):
-        resolve = False
+        resolve_conflict = False
+        solve_q_vals = False
         add_traj = False
         hold_current_state = self.current_state
         self.current_state = '{}^[{}]'.format(trajectory[0][0], 0)
@@ -207,19 +208,25 @@ class AbstractionMachine():
             if str(triple) not in self.default_triple_set:
                 self.default_triple_set.add(str(triple))
                 add_traj = True
-            conflict = self.step(state, action, reward, next_state, resolve_non_zero=resolve_non_zero)
+            conflict, solve = self.step(state, action, reward, next_state, resolve_non_zero=resolve_non_zero)
             if conflict:
-                resolve = True
+                resolve_conflict = True
                 add_traj = True
                 break
+            elif solve:
+                add_traj = True
+                solve_q_vals = True
         if add_traj:
             self.exemplar_trajectories.append(trajectory)
-        if resolve:
+        if resolve_conflict:
             self.resolve_reward_conflicts(write_file=write_file, make_graph=make_graph)
+        elif solve_q_vals:
+            self._solve_abstract_MDP()
         self.current_state = hold_current_state
 
     def step(self, state, action, reward, next_state, resolve_non_zero=False):
         conflict = False
+        solve = False
         if self.current_state is None:
             self.current_state = '{}^[{}]'.format(state, 0)
         if action in self.abstract_table[self.current_state]:
@@ -234,7 +241,7 @@ class AbstractionMachine():
                 self.abstract_table[self.current_state][action][next_state].add(reward)
                 if reward != 0 and resolve_non_zero:
                     # no actual conflict, just forcing a resolve if there is a new reward triple that changes q vals
-                    conflict = True
+                    solve = True
                 self.current_state = next_state
             else:
                 self.abstract_table[self.current_state][action][some_next_state].add(reward)
@@ -247,9 +254,9 @@ class AbstractionMachine():
             self.abstract_table[self.current_state][action][next_state].add(reward)
             if reward != 0 and resolve_non_zero:
                 # no actual conflict, just forcing a resolve if there is a new reward triple that changes q vals
-                conflict = True
+                solve = True
             self.current_state = next_state
-        return conflict
+        return conflict, solve
 
     def reset(self):
         self.current_state = None

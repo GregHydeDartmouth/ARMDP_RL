@@ -118,7 +118,7 @@ class test_abstract_q_learning(unittest.TestCase):
               ['6', actions['^'], 0.5, '9']]
         AM.add_trajectory(t3, make_graph=True)
 
-    def est_one_traj_at_a_time(self):
+    def test_one_traj_at_a_time(self):
         actions = {'^': 0,
                    'v': 1,
                    '<': 2,
@@ -149,7 +149,7 @@ class test_abstract_q_learning(unittest.TestCase):
         AM.step('[1]',action, 0, '[5]')
         action = AM.get_action('[5]')
 
-    def test_state_granularity(self):
+    def est_state_granularity(self):
         t1 = [['1', '^', 0, '4'],
               ['4', '>', 0, '5'],
               ['5', '^', 0, '8'],
