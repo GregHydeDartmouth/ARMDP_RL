@@ -14,7 +14,7 @@ class AbstractionMachine():
             if action_set == None:
                 raise Exception("can not run q_vals without action_size")
             else:
-                self.action_set = action_set
+                self.action_set = [str(a) for a in action_set]
         self.gamma = gamma
         self.default_triple_set = set()
         self.exemplar_trajectories = trajectories
