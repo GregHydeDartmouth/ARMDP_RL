@@ -15,35 +15,27 @@ class AbstractionMachine():
                 raise Exception("can not run q_vals without action_size")
             else:
                 self.action_set = action_set
-                self.action_mapping = {}
-                for action in self.action_set:
-                    self.action_mapping[str(action)] = action
         self.gamma = gamma
         self.default_triple_set = set()
         self.exemplar_trajectories = trajectories
         self.granularity=granularity
+
         self.current_state = None
         self.depth = 2
 
-    def _write_mappings(self):
-        actions_file = open('action_mapping.txt', 'w')
-        for action, mapping in self.action_mapping.items():
-            actions_file.write('{}->{}\n'.format(action, mapping))
-        actions_file.close()
-        states_file = open('state_mapping.txt', 'w')
-        for state, mapping in self.state_mapping.items():
-            states_file.write('{}->{}\n'.format(state, mapping))
-        states_file.close()
-
     def _get_conflicting_trajectories(self):
         conflict_table = defaultdict(lambda: defaultdict(set))
+        four_four = []
         for i, traj in enumerate(self.exemplar_trajectories):
             for triple in traj:
                 state, action, reward, next_state = triple
+                if next_state == '[4 4]':
+                    four_four.append(i)
                 if self.granularity =='triple':
                     conflict_table[(state, action, next_state)][reward].add(i)
-                else:
+                else: # self.granularity=='state':
                     conflict_table[next_state][reward].add(i)
+
         conflicting_traj_idxs = set()
         for triple in conflict_table:
             if len(conflict_table[triple].keys()) > 1:
@@ -89,9 +81,9 @@ class AbstractionMachine():
                         choices_by_next_state[j].append(choice)
                         choice_mutex_dict['({}^[{}],{},{}^[{}])'.format(state, '', action, next_state, '')][i][j].append(choice)
                         if i != j:
-                            if self.granularity=='triple':
+                            if self.granularity == 'triple':
                                 choice_types['({}^[{}],{},{}^[{}])'.format(state, i, action, next_state, j)].append(choice)
-                            elif self.granularity=='state':
+                            elif self.granularity == 'state':
                                 choice_types['{}^[{}])'.format(next_state, j)].append(choice)
                         choice_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = choice
                         reward_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = reward
@@ -146,7 +138,7 @@ class AbstractionMachine():
         self.abstract_Q_table = defaultdict(lambda: defaultdict(float))
         for state in self.abstract_table:
             for action in self.action_set:
-                self.abstract_Q_table[state][str(action)] = 0
+                self.abstract_Q_table[state][action] = 0
         print('solving abstract MDP')
         while True:
             delta = 0
@@ -175,7 +167,6 @@ class AbstractionMachine():
         max_action = None
         equivalent_actions = []
         for action in self.action_set:
-            action = str(action)
             val = round(self.abstract_Q_table[state][action], 5)
             if max_qsa is None:
                 max_qsa = val
@@ -190,13 +181,11 @@ class AbstractionMachine():
                     equivalent_actions.append((val, action))
         if len(equivalent_actions) > 1:
             max_qsa, max_action = random.choice(equivalent_actions)
-            max_action = self.action_mapping[max_action]
         return max_qsa, max_action
 
     def _abstract_qsas(self, state):
         qsas = dict()
         for action in self.action_set:
-            action = str(action)
             val = round(self.abstract_Q_table[state][action], 5)
             qsas[action] = val
         return qsas
@@ -314,7 +303,9 @@ class AbstractionMachine():
                 for triple in traj:
                     state, action, reward, next_state = triple
                     self.step(state,action,reward,next_state)
+                    self.build_abstract_MDP(var_dict, reward_table)
             self.reset()
+            x = input()
 
             if self.run_q_vals:
                 self._solve_abstract_MDP()
