@@ -35,6 +35,23 @@ class AbstractionMachine():
             states_file.write('{}->{}\n'.format(state, mapping))
         states_file.close()
 
+    def _get_conflicting_trajectories(self):
+        conflict_table = defaultdict(lambda: defaultdict(set))
+        for i, traj in enumerate(self.exemplar_trajectories):
+            for triple in traj:
+                state, action, reward, next_state = triple
+                conflict_table[(state, action, next_state)][reward].add(i)
+        conflicting_traj_idxs = set()
+        for triple in conflict_table:
+            if len(conflict_table[triple].keys()) > 1:
+                for reward in conflict_table[triple]:
+                    for traj_idx in conflict_table[triple][reward]:
+                        conflicting_traj_idxs.add(traj_idx)
+        conflicting_trajectories = []
+        for conflict_traj_idx in conflicting_traj_idxs:
+            conflicting_trajectories.append(self.exemplar_trajectories[conflict_traj_idx])
+        return conflicting_trajectories
+
     def _get_transition_splits(self, drp, depth):
         choice_table = dict()
         choice_types = defaultdict(list)
@@ -46,7 +63,9 @@ class AbstractionMachine():
         variables = 0
         constraints = 0
 
-        for k, traj in enumerate(tqdm(self.exemplar_trajectories, desc="Making split states...", disable=not self.verbose)):
+        conflicting_trajectories = self._get_conflicting_trajectories()
+
+        for k, traj in enumerate(tqdm(conflicting_trajectories, desc="Making split states...", disable=not self.verbose)):
             prev_choices_by_next_state = defaultdict(list)
             for l, triple in enumerate(traj):
                 state, action, reward, next_state = triple
@@ -216,6 +235,7 @@ class AbstractionMachine():
             elif solve:
                 add_traj = True
                 solve_q_vals = True
+
         if add_traj:
             self.exemplar_trajectories.append(trajectory)
         if resolve_conflict:
@@ -282,11 +302,21 @@ class AbstractionMachine():
                 self.depth += 1
                 print("Depth insufficient to solve... increasing depth by 1. New Depth: {}".format(self.depth))
                 continue
+            # build abstract MDP
             self.build_abstract_MDP(var_dict, reward_table)
+
+            # add non-conflicting trajs to the abstract MDP
+            for traj in self.exemplar_trajectories:
+                self.reset()
+                for triple in traj:
+                    state, action, reward, next_state = triple
+                    self.step(state,action,reward,next_state)
+            self.reset()
+
             if self.run_q_vals:
                 self._solve_abstract_MDP()
             if make_graph:
-                self.build_abstract_MDP_graph(var_dict, reward_table)
+                self.build_abstract_MDP_graph()
             break
         return
 
@@ -298,33 +328,18 @@ class AbstractionMachine():
                 triple = variable.split('(')[1].split(')')[0].split(',')
                 self.abstract_table[triple[0]][triple[1]][triple[2]].add(reward)
 
-    def build_abstract_MDP_graph(self, var_dict, reward_table):
+    def build_abstract_MDP_graph(self):
         g = Digraph('abstract_MDP')
-        edges = set()
-        for variable, value in var_dict.items():
-            if '_choice' in variable and value > 0.5:
-                reward = reward_table[variable]
-                triple = variable.split('(')[1].split(')')[0].split(',')
+        for state in self.abstract_table:
+            for action in self.abstract_table[state]:
                 if self.run_q_vals:
-                    q_sa = round(self.abstract_Q_table[triple[0]][triple[1]],2)
-                if tuple(triple) not in edges:
-                    try:
-                        scale = 4
-                        level_scale = 20
-                        state_location = triple[0].split(' ')
-                        state_i = int(state_location[1].split('^')[1][1])
-                        state_from = (int(state_location[0][1]) * scale + (level_scale * state_i), int(state_location[1][0]) * scale + (level_scale * state_i))
-                        next_state_location = triple[2].split(' ')
-                        next_state_j = int(next_state_location[1].split('^')[1][1])
-                        next_state_to = (int(next_state_location[0][1]) * scale + (level_scale * next_state_j), int(next_state_location[1][0]) * scale + (level_scale * next_state_j))
-                        g.node(triple[0], pos='{},{}!'.format(state_from[0], state_from[1]))
-                        g.node(triple[2], pos='{},{}!'.format(next_state_to[0], next_state_to[1]))
-                    except:
-                        g.node(triple[0])
-                        g.node(triple[2])
-                    if self.run_q_vals:
-                        g.edge(triple[0], triple[2], label='a={},r={},q_sa={}'.format(triple[1], reward, q_sa))
-                    else:
-                        g.edge(triple[0], triple[2], label='a={},r={}'.format(triple[1], reward))
-                    edges.add(tuple(triple))
+                    q_sa = round(self.abstract_Q_table[state][action], 2)
+                for next_state in self.abstract_table[state][action]:
+                    for reward in self.abstract_table[state][action][next_state]:
+                        g.node(state)
+                        g.node(next_state)
+                        if self.run_q_vals:
+                            g.edge(state, next_state, label='a={},r={},q_sa={}'.format(action, reward, q_sa))
+                        else:
+                            g.edge(state, next_state, label='a={},r={}'.format(action, reward))
         g.render('graphs/abstract_MDP', view=False)
