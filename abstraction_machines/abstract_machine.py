@@ -25,15 +25,12 @@ class AbstractionMachine():
 
     def _get_conflicting_trajectories(self):
         conflict_table = defaultdict(lambda: defaultdict(set))
-        four_four = []
         for i, traj in enumerate(self.exemplar_trajectories):
             for triple in traj:
                 state, action, reward, next_state = triple
-                if next_state == '[4 4]':
-                    four_four.append(i)
                 if self.granularity =='triple':
                     conflict_table[(state, action, next_state)][reward].add(i)
-                else: # self.granularity=='state':
+                elif self.granularity=='state':
                     conflict_table[next_state][reward].add(i)
 
         conflicting_traj_idxs = set()
@@ -59,7 +56,6 @@ class AbstractionMachine():
         constraints = 0
 
         conflicting_trajectories = self._get_conflicting_trajectories()
-
         for k, traj in enumerate(tqdm(conflicting_trajectories, desc="Making split states...", disable=not self.verbose)):
             prev_choices_by_next_state = defaultdict(list)
             for l, triple in enumerate(traj):
@@ -159,28 +155,32 @@ class AbstractionMachine():
                     self.abstract_Q_table[state][action] = qsa
             if self.verbose:
                 print('Delta: {}'.format(delta))
-            if delta <= 1e-2:
+            if delta <= 0.0000001:
                 break
 
     def _abstract_qsa_max(self, state):
         max_qsa = None
         max_action = None
         equivalent_actions = []
-        for action in self.action_set:
-            val = round(self.abstract_Q_table[state][action], 5)
-            if max_qsa is None:
-                max_qsa = val
-                max_action = action
-                equivalent_actions = [(max_qsa, max_action)]
-            else:
-                if val > max_qsa:
+        if state in self.abstract_Q_table:
+            for action in self.action_set:
+                val = round(self.abstract_Q_table[state][action], 5)
+                if max_qsa is None:
                     max_qsa = val
                     max_action = action
                     equivalent_actions = [(max_qsa, max_action)]
-                elif val == max_qsa:
-                    equivalent_actions.append((val, action))
-        if len(equivalent_actions) > 1:
-            max_qsa, max_action = random.choice(equivalent_actions)
+                else:
+                    if val > max_qsa:
+                        max_qsa = val
+                        max_action = action
+                        equivalent_actions = [(max_qsa, max_action)]
+                    elif val == max_qsa:
+                        equivalent_actions.append((val, action))
+            if len(equivalent_actions) > 1:
+                max_qsa, max_action = random.choice(equivalent_actions)
+        else:
+            max_action = random.choice(self.action_set)
+            max_qsa = 0
         return max_qsa, max_action
 
     def _abstract_qsas(self, state):
@@ -207,38 +207,21 @@ class AbstractionMachine():
         policy_mapping = self._abstract_qsas(self.current_state)
         return policy_mapping
 
-    def add_trajectory(self, trajectory, resolve_non_zero=False, write_file = False, make_graph = False):
-        resolve_conflict = False
-        solve_q_vals = False
-        add_traj = False
-        hold_current_state = self.current_state
-        self.current_state = '{}^[{}]'.format(trajectory[0][0], 0)
-        for triple in trajectory:
-            state, action, reward, next_state = triple
-            action = str(action)
-            if str(triple) not in self.default_triple_set:
-                self.default_triple_set.add(str(triple))
-                add_traj = True
-            conflict, solve = self.step(state, action, reward, next_state, resolve_non_zero=resolve_non_zero)
-            if conflict:
-                resolve_conflict = True
-                add_traj = True
-                break
-            elif solve:
-                add_traj = True
-                solve_q_vals = True
-
-        if add_traj:
+    def update_abstractions(self, trajectory, add_trajectory=False, resolve_conflict = False, resolve_q_vals=False, write_file = False, make_graph = False):
+        if add_trajectory:
             self.exemplar_trajectories.append(trajectory)
         if resolve_conflict:
+            self.exemplar_trajectories.append(trajectory)
             self.resolve_reward_conflicts(write_file=write_file, make_graph=make_graph)
-        elif solve_q_vals:
+        elif resolve_q_vals:
+            self.exemplar_trajectories.append(trajectory)
             self._solve_abstract_MDP()
-        self.current_state = hold_current_state
+            if make_graph:
+                self._build_abstract_MDP_graph()
 
-    def step(self, state, action, reward, next_state, resolve_non_zero=False):
+    def step(self, state, action, reward, next_state, evaluate=False):
         conflict = False
-        solve = False
+        new_q_val = False
         if self.current_state is None:
             self.current_state = '{}^[{}]'.format(state, 0)
         if action in self.abstract_table[self.current_state]:
@@ -250,34 +233,40 @@ class AbstractionMachine():
             if found_abstract_state is None:
                 current_level = self.current_state.split('^')[1]
                 next_state = '{}^{}'.format(next_state, current_level)
-                self.abstract_table[self.current_state][action][next_state].add(reward)
-                if reward != 0 and resolve_non_zero:
+                if not evaluate:
+                    self.abstract_table[self.current_state][action][next_state].add(reward)
+                if reward != 0:
                     # no actual conflict, just forcing a resolve if there is a new reward triple that changes q vals
-                    solve = True
+                    new_q_val = True
                 self.current_state = next_state
             else:
-                self.abstract_table[self.current_state][action][some_next_state].add(reward)
+                if not evaluate:
+                    self.abstract_table[self.current_state][action][some_next_state].add(reward)
                 if len(self.abstract_table[self.current_state][action][some_next_state]) > 1:
                     conflict = True
                 self.current_state = some_next_state
         else:
             current_level = self.current_state.split('^')[1]
             next_state = '{}^{}'.format(next_state, current_level)
-            self.abstract_table[self.current_state][action][next_state].add(reward)
-            if reward != 0 and resolve_non_zero:
+            if not evaluate:
+                self.abstract_table[self.current_state][action][next_state].add(reward)
+            if reward != 0:
                 # no actual conflict, just forcing a resolve if there is a new reward triple that changes q vals
-                solve = True
+                new_q_val = True
             self.current_state = next_state
-        return conflict, solve
+        return conflict, new_q_val
 
     def reset(self):
         self.current_state = None
 
-    def resolve_reward_conflicts(self, write_file=False, make_graph=False):
+    def resolve_reward_conflicts(self, find_feasible=False, write_file=False, make_graph=False):
         print("\nMaking Dual Reward Problem")
 
         while True:
             drp = Model("Dual Reward Problem")
+            drp.setParam('MIPFocus',1)
+            if find_feasible:
+                drp.setParam('SolutionLimit',1)
             # get split states
             reward_table, jump_contexts = self._get_transition_splits(drp, self.depth)
             z = drp.addVar(name='objective', vtype=GRB.INTEGER)
@@ -295,26 +284,23 @@ class AbstractionMachine():
                 print("Depth insufficient to solve... increasing depth by 1. New Depth: {}".format(self.depth))
                 continue
             # build abstract MDP
-            self.build_abstract_MDP(var_dict, reward_table)
-
+            self._build_abstract_MDP(var_dict, reward_table)
             # add non-conflicting trajs to the abstract MDP
             for traj in self.exemplar_trajectories:
                 self.reset()
                 for triple in traj:
                     state, action, reward, next_state = triple
                     self.step(state,action,reward,next_state)
-                    self.build_abstract_MDP(var_dict, reward_table)
             self.reset()
-            x = input()
 
             if self.run_q_vals:
                 self._solve_abstract_MDP()
             if make_graph:
-                self.build_abstract_MDP_graph()
+                self._build_abstract_MDP_graph()
             break
         return
 
-    def build_abstract_MDP(self, var_dict, reward_table):
+    def _build_abstract_MDP(self, var_dict, reward_table):
         self.abstract_table = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
         for variable, value in var_dict.items():
             if '_choice' in variable and value > 0.5:
@@ -322,7 +308,7 @@ class AbstractionMachine():
                 triple = variable.split('(')[1].split(')')[0].split(',')
                 self.abstract_table[triple[0]][triple[1]][triple[2]].add(reward)
 
-    def build_abstract_MDP_graph(self):
+    def _build_abstract_MDP_graph(self):
         g = Digraph('abstract_MDP')
         for state in self.abstract_table:
             for action in self.abstract_table[state]:
