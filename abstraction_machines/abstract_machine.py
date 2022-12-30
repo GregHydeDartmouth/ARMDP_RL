@@ -1,12 +1,29 @@
+import json
+import time
 import random
 from tqdm import tqdm
 from gurobipy import *
 from graphviz import Digraph
 from collections import defaultdict
 
+def _model_callback(model, where):
+        if where == GRB.Callback.MIPNODE:
+            obj = model.cbGet(GRB.Callback.MIPNODE_OBJBST)
+            # start timer at feasible solution
+            if obj > 1e50:
+                model._time = time.time()
+            elif abs(obj - model._cur_obj) > 1e-8:
+                model._cur_obj = obj
+                model._time = time.time()
+        if time.time() - model._time > model._change_tl:
+            print("\nTerminated model due to timeout")
+            model.terminate()
+
 class AbstractionMachine():
-    def __init__(self, trajectories = [], granularity='triple', verbose=False, run_q_vals=False, action_set=None, gamma=0.9):
+    def __init__(self, trajectories = [], granularity='triple',num_threads=16, model_change_tl=None, verbose=False, run_q_vals=False, action_set=None, gamma=0.9):
         self.verbose = verbose
+        self.num_threads = num_threads
+        self.model_change_tl = model_change_tl
         self.run_q_vals = run_q_vals
         if self.run_q_vals:
             self.abstract_table = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
@@ -36,6 +53,10 @@ class AbstractionMachine():
         conflicting_traj_idxs = set()
         for triple in conflict_table:
             if len(conflict_table[triple].keys()) > 1:
+                if len(conflict_table[triple].keys()) > self.depth:
+                    self.depth = len(conflict_table[triple].keys())
+                    if self.verbose:
+                        print("Depth insufficient to solve... increasing depth to max number of conflicting rewards for a triple. New Depth: {}".format(self.depth))
                 for reward in conflict_table[triple]:
                     for traj_idx in conflict_table[triple][reward]:
                         conflicting_traj_idxs.add(traj_idx)
@@ -43,6 +64,31 @@ class AbstractionMachine():
         for conflict_traj_idx in conflicting_traj_idxs:
             conflicting_trajectories.append(self.exemplar_trajectories[conflict_traj_idx])
         return conflicting_trajectories
+
+    def save_abstraction_model(self, file_name, save_q_vals = False):
+        # abstract table in a list
+        save_abstract_table = defaultdict(lambda: defaultdict(dict))
+        for state in self.abstract_table:
+            for action in self.abstract_table[state]:
+                for next_state, reward_set in self.abstract_table[state][action].items():
+                    save_abstract_table[state][action][next_state] = list(reward_set)
+        model = {'abstraction': save_abstract_table}
+        if save_q_vals:
+            model['q_vals'] = self.abstract_Q_table
+            #model.append(json.dumps(self.abstract_Q_table, indent=4))
+        with open(file_name, 'w') as f:
+            json.dump(model, f)
+
+    def load_abstraction_model(self, file_name):
+        with open(file_name, 'r') as f:
+            model = json.load(f)
+        self.abstract_table = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+        for state in model['abstraction']:
+            for action in model['abstraction'][state]:
+                for next_state, reward_list in model['abstraction'][state][action].items():
+                    self.abstract_table[state][action][next_state] = set(reward_list)
+        if 'q_vals' in model.keys():
+            self.abstract_Q_table = model['q_vals']
 
     def _get_transition_splits(self, drp, depth):
         choice_table = dict()
@@ -117,7 +163,8 @@ class AbstractionMachine():
                         if reward != other_reward:
                             for other_choice_reward_dict in other_choice_reward_dict_list:
                                 for choice, choice_var in choice_reward_dict.items():
-                                    drp.addConstr(choice_var + other_choice_reward_dict[choice], GRB.LESS_EQUAL, 1, name='reward_mutex_constr')
+                                    if choice in other_choice_reward_dict:
+                                        drp.addConstr(choice_var + other_choice_reward_dict[choice], GRB.LESS_EQUAL, 1, name='reward_mutex_constr')
 
 
         for choice_type, choices in choice_types.items():
@@ -135,7 +182,8 @@ class AbstractionMachine():
         for state in self.abstract_table:
             for action in self.action_set:
                 self.abstract_Q_table[state][action] = 0
-        print('solving abstract MDP')
+        if self.verbose:
+            print('solving abstract MDP')
         while True:
             delta = 0
             for state, action_dict in self.abstract_table.items():
@@ -207,12 +255,12 @@ class AbstractionMachine():
         policy_mapping = self._abstract_qsas(self.current_state)
         return policy_mapping
 
-    def update_abstractions(self, trajectory, add_trajectory=False, resolve_conflict = False, resolve_q_vals=False, write_file = False, make_graph = False):
+    def update_abstractions(self, trajectory, add_trajectory=False, resolve_conflict = False, resolve_q_vals=False, find_feasible=False, write_file = False, make_graph = False):
         if add_trajectory:
             self.exemplar_trajectories.append(trajectory)
         if resolve_conflict:
             self.exemplar_trajectories.append(trajectory)
-            self.resolve_reward_conflicts(write_file=write_file, make_graph=make_graph)
+            self.resolve_reward_conflicts(find_feasible=find_feasible, write_file=write_file, make_graph=make_graph)
         elif resolve_q_vals:
             self.exemplar_trajectories.append(trajectory)
             self._solve_abstract_MDP()
@@ -260,11 +308,14 @@ class AbstractionMachine():
         self.current_state = None
 
     def resolve_reward_conflicts(self, find_feasible=False, write_file=False, make_graph=False):
-        print("\nMaking Dual Reward Problem")
+        if self.verbose:
+            print("\nMaking Dual Reward Problem")
+            print("Model Depth: {}".format(self.depth))
 
         while True:
             drp = Model("Dual Reward Problem")
-            drp.setParam('MIPFocus',1)
+            #drp.setParam('MIPFocus',1)
+            drp.setParam('Threads',self.num_threads)
             if find_feasible:
                 drp.setParam('SolutionLimit',1)
             # get split states
@@ -274,7 +325,13 @@ class AbstractionMachine():
             drp.setObjective(z, GRB.MINIMIZE)
             if write_file:
                 drp.write('model_with_depth={}.lp'.format(self.depth))
-            drp.optimize()
+            if self.model_change_tl is not None:
+                drp._cur_obj=float('inf')
+                drp._time = time.time()
+                drp._change_tl = self.model_change_tl
+                drp.optimize(callback=_model_callback)
+            else:
+                drp.optimize()
             var_dict = dict()
             try:
                 for v in drp.getVars():
