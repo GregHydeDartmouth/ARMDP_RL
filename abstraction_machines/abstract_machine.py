@@ -120,7 +120,9 @@ class AbstractionMachine():
                         choices_by_state[i].append(choice)
                         choices_by_next_state[j].append(choice)
                         choice_mutex_dict['({}^[{}],{},{}^[{}])'.format(state, '', action, next_state, '')][i][j].append(choice)
-                        if i != j:
+                        #if i != j:
+                        # anythin that requires more steps out into the 
+                        if j > 0:
                             if self.granularity == 'triple':
                                 choice_types['({}^[{}],{},{}^[{}])'.format(state, i, action, next_state, j)].append(choice)
                             elif self.granularity == 'state':

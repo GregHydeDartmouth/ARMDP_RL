@@ -7,7 +7,7 @@ gamma = 0.9
 eps = 0.1
 max_traj_length = 10
 action_set=['^','v','<','>','o']
-AM = AbstractionMachine(run_q_vals=True, action_set=action_set, num_threads=28, model_change_tl=60, verbose=True)
+AM = AbstractionMachine(action_set=action_set, num_models=1, verbose=True)
 rewards = deque(maxlen=100)
 
 for i in range(0, 10000):
@@ -41,6 +41,6 @@ for i in range(0, 10000):
     print('\ravg reward: {}, episode_num: {}'.format(avg_reward, i), end="")
 #AM._build_abstract_MDP_graph()
 AM._solve_abstract_MDP()
-AM.save_abstraction_model("test.json", save_q_vals = True)
+AM.save_abstraction_model("test.json")
 AM.load_abstraction_model("test.json")
 AM._build_abstract_MDP_graph()
