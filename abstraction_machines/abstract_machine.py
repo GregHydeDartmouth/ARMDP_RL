@@ -159,8 +159,6 @@ class AbstractionMachine():
     def balance_evidence(self, state, action, reward, next_state):
         for _reward, exemplar_ids in self.reward_conflicts_table[(state, action, next_state)].items():
             if reward != _reward:
-                print(self.reward_conflicts_table[(state, action, next_state)])
-                print("@@@@@@@@@@",_reward)
                 x = input()
                 exemplar_id = random.choice(exemplar_ids)
                 self.conflicting_trajectories.append(self.exemplar_trajectories[exemplar_id])
@@ -211,16 +209,9 @@ class AbstractionMachine():
                         break
                 if abstract_next_state is not None:
                     if reward in self.abstract_table[self.current_state][action][abstract_next_state]:
-                        #if update: 
-                        #    print(self.current_state, action, reward, abstract_next_state)
                         self.current_state = abstract_next_state
                         return conflict, run_q_vals
                     else:
-                        #if update:
-                        #    print(self.current_state, action, reward, abstract_next_state)
-                        #print(self.abstract_table[self.current_state][action][abstract_next_state])
-                        #print(state, action, reward, next_state)
-                        #x = input()
                         self.current_state = abstract_next_state
                         conflict = True
                         return conflict, run_q_vals
@@ -228,7 +219,6 @@ class AbstractionMachine():
         current_level = self.current_state.split('^')[1]
         abstract_next_state = '{}^{}'.format(next_state, current_level)
         if update:
-            #print(self.current_state, action, reward, abstract_next_state)
             self.abstract_table[self.current_state][action][abstract_next_state].add(reward)
             assert len(self.abstract_table[self.current_state][action][abstract_next_state]) == 1, "something wrong"
         if reward != 0:
@@ -356,7 +346,7 @@ class AbstractionMachine():
                     # first state level of any trajectory must 0
                     if l == 0 and i == 1:
                         break
-                    for j in range(i, depth):
+                    for j in range(0, depth):
                         choice = drp.addVar(name='traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j), vtype=GRB.BINARY)
                         variables += 1
                         choices.append(choice)
