@@ -36,6 +36,7 @@ class AbstractionMachine():
         self.trajectory_trace = []
 
         self.depth = 2
+        self.min_obj = 0
 
     def save_abstraction_model(self, file_name):
         # abstract table in a list
@@ -159,7 +160,6 @@ class AbstractionMachine():
     def balance_evidence(self, state, action, reward, next_state):
         for _reward, exemplar_ids in self.reward_conflicts_table[(state, action, next_state)].items():
             if reward != _reward:
-                x = input()
                 exemplar_id = random.choice(exemplar_ids)
                 self.conflicting_trajectories.append(self.exemplar_trajectories[exemplar_id])
 
@@ -177,7 +177,7 @@ class AbstractionMachine():
                     AMDP_conflict, run_q_vals = self.step(state, action, reward, next_state, update=True)
                     if AMDP_conflict:
                         self.conflicting_trajectories.append(self.trajectory_trace)
-                        self.balance_evidence(state, action, reward, next_state)
+                        #self.balance_evidence(state, action, reward, next_state)
                         self.resolve_reward_conflicts()
                         break
         else:
@@ -231,7 +231,7 @@ class AbstractionMachine():
         if self.trajectory_trace != []:
             self.update_abstractions()
         self.trajectory_trace = []
-        self.current_state is None
+        self.current_state = None
 
 
     def build_abstract_MDP(self, var_dict, reward_table):
@@ -267,7 +267,8 @@ class AbstractionMachine():
             reward_table, jump_contexts = self.get_transition_splits(drp, self.depth)
             z = drp.addVar(name='objective', vtype=GRB.INTEGER)
             drp.addConstr(z == quicksum(jump_contexts), name='objective_constr')
-            drp.setObjective(z, GRB.MAXIMIZE)
+            drp.addConstr(z >= self.min_obj, name='objective_floor_constr')
+            drp.setObjective(z, GRB.MINIMIZE)
             if self.write_files:
                 drp.write('model_with_depth={}.lp'.format(self.depth))
             drp.optimize()
@@ -275,9 +276,12 @@ class AbstractionMachine():
             try:
                 for v in drp.getVars():
                     var_dict[v.varName] = v.x
+                    if v.varName == 'objective':
+                        self.min_obj = v.x
             except:
                 self.depth += 1
-                self.conflicting_trajectories = self.old_conflicting_trajectories
+                self.min_obj = 0
+                self.conflicting_trajectories = copy.deepcopy(self.old_conflicting_trajectories)
                 print("Depth insufficient to solve... increasing depth by 1. New Depth: {}".format(self.depth))
                 continue
             # build abstract MDP
@@ -346,15 +350,21 @@ class AbstractionMachine():
                     # first state level of any trajectory must 0
                     if l == 0 and i == 1:
                         break
-                    for j in range(0, depth):
+                    for j in range(i, depth):
                         choice = drp.addVar(name='traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j), vtype=GRB.BINARY)
                         variables += 1
                         choices.append(choice)
                         choices_by_state[i].append(choice)
                         choices_by_next_state[j].append(choice)
-                        choice_mutex_dict['({}^[{}],{},{}^[{}])'.format(state, '', action, next_state, '')][i][j].append(choice)
+                        if self.granularity == 'triple':
+                            choice_mutex_dict['({}^[{}],{},{}^[{}])'.format(state, '', action, next_state, '')][i][j].append(choice)
+                        elif self.granularity == 'state':
+                            choice_mutex_dict['{}'.format(next_state)][i][j].append(choice)
                         if i != j:
-                            choice_types['({}^[{}],{},{}^[{}])'.format(state, i, action, next_state, j)].append(choice)
+                            if self.granularity == 'triple':
+                                choice_types['({}^[{}],{},{}^[{}])'.format(state, i, action, next_state, j)].append(choice)
+                            elif self.granularity == 'state':
+                                choice_types['{}^{}'.format(next_state, j)].append(choice)
                         choice_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = choice
                         reward_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = reward
                         reward_mutex_dict['{}^[{}]'.format(next_state, j)][reward].append(choice)
@@ -394,7 +404,8 @@ class AbstractionMachine():
 
         for choice_type, choices in choice_types.items():
             choice_toggle = drp.addVar(name='{}_jump_toggle'.format(choice_type), vtype=GRB.BINARY)
-            drp.addGenConstrIndicator(choice_toggle, True, quicksum(choices), GRB.GREATER_EQUAL, 1)
+            drp.addGenConstrIndicator(choice_toggle, False, quicksum(choices), GRB.EQUAL, 0)
+            #drp.addGenConstrIndicator(choice_toggle, True, quicksum(choices), GRB.GREATER_EQUAL,1)
             jump_contexts.append(choice_toggle)
 
         if self.verbose:
