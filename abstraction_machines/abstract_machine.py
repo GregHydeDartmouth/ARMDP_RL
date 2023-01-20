@@ -35,7 +35,9 @@ class AbstractionMachine():
         self.current_state = None
         self.trajectory_trace = []
 
-        self.depth = 2
+        self.solve_num = 0
+        self.depth = 1
+        self.depth_solve_time = defaultdict(float)
         self.min_obj = 0
 
     def save_abstraction_model(self, file_name):
@@ -182,14 +184,16 @@ class AbstractionMachine():
                         break
         else:
             self.current_state = None
-            new_nonzero_reward = False
+            #new_nonzero_reward = False
+            fell_off = False
             for trip in self.trajectory_trace:
                 state, action, reward, next_state = trip
                 AMDP_conflict, run_q_vals = self.step(state, action, reward, next_state, update=True)
                 assert not AMDP_conflict, 'Error in AMDP. Trajectory previously determined to not be conflicting'
-                if not new_nonzero_reward and run_q_vals:
-                    new_nonzero_reward = True
-            if new_nonzero_reward:
+                #if not new_nonzero_reward and run_q_vals:
+                if not fell_off and run_q_vals:
+                    fell_off = True
+            if fell_off:
                 self.solve_abstract_MDP()
                 #self.build_abstract_MDP_graph()
 
@@ -221,8 +225,8 @@ class AbstractionMachine():
         if update:
             self.abstract_table[self.current_state][action][abstract_next_state].add(reward)
             assert len(self.abstract_table[self.current_state][action][abstract_next_state]) == 1, "something wrong"
-        if reward != 0:
-            run_q_vals = True
+        #if reward != 0:
+        run_q_vals = True
         self.current_state = abstract_next_state
 
         return conflict, run_q_vals
@@ -271,6 +275,7 @@ class AbstractionMachine():
             drp.setObjective(z, GRB.MINIMIZE)
             if self.write_files:
                 drp.write('model_with_depth={}.lp'.format(self.depth))
+            t1 = time.time()
             drp.optimize()
             var_dict = dict()
             try:
@@ -278,6 +283,8 @@ class AbstractionMachine():
                     var_dict[v.varName] = v.x
                     if v.varName == 'objective':
                         self.min_obj = v.x
+                t2 = time.time()
+                self.depth_solve_time[self.depth] += t2-t1
             except:
                 self.depth += 1
                 self.min_obj = 0
@@ -291,6 +298,7 @@ class AbstractionMachine():
             if self.make_graphs:
                 self.build_abstract_MDP_graph()
             break
+        self.solve_num += 1
         return
 
     def solve_abstract_MDP(self, tf=None):
