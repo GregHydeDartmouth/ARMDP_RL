@@ -23,7 +23,7 @@ class Beachworld():
     def reward(self, state, action, next_state):
         reward = 0
         if state == 'beach' and action =='o' and next_state == 'beach':
-            reward = 1 - 0.2 * self.sun_counter
+            reward = 1 - 0.1 * self.sun_counter
             self.sun_counter += 1
         return round(reward,1)
 

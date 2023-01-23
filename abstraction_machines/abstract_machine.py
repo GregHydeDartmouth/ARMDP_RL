@@ -120,8 +120,6 @@ class AbstractionMachine():
         action = random.choices(actions, distr, k=1)[0]
         return action
 
-
-
     def get_state_policy(self, state):
         if self.current_state is None:
             self.current_state = '{}^[{}]'.format(state, 0)
@@ -140,10 +138,12 @@ class AbstractionMachine():
                     if reward in self.reward_conflicts_table[(state, action, next_state)]:
                         self.reward_conflicts_table[(state, action, next_state)][reward].append(len(self.exemplar_trajectories)-1)
                         if len(self.reward_conflicts_table[(state, action, next_state)]) > 1:
+                            self.depth = max(len(self.reward_conflicts_table[(state, action, next_state)]), self.depth)
                             conflict = True
                     else:
                         self.reward_conflicts_table[(state, action, next_state)][reward] = [len(self.exemplar_trajectories)-1]
                         if len(self.reward_conflicts_table[(state, action, next_state)]) >= 1:
+                            self.depth = max(len(self.reward_conflicts_table[(state, action, next_state)]), self.depth)
                             conflict = True
                 else:
                     self.reward_conflicts_table[(state, action, next_state)][reward] = [len(self.exemplar_trajectories)-1]
@@ -152,18 +152,16 @@ class AbstractionMachine():
 
     def initialize_conflicting_trajectories(self):
         for triple, reward_dict in self.reward_conflicts_table.items():
+            conflicting_ids = set()
             if len(reward_dict.keys()) > 1:
                 for reward, exemplar_ids in reward_dict.items():
-                    exemplar_id = random.choice(exemplar_ids)
-                    self.conflicting_trajectories.append(self.exemplar_trajectories[exemplar_id])
-                break
-        self.old_conflicting_trajectories = copy.deepcopy(self.conflicting_trajectories)
-
-    def balance_evidence(self, state, action, reward, next_state):
-        for _reward, exemplar_ids in self.reward_conflicts_table[(state, action, next_state)].items():
-            if reward != _reward:
-                exemplar_id = random.choice(exemplar_ids)
-                self.conflicting_trajectories.append(self.exemplar_trajectories[exemplar_id])
+                    for exemplar_id in exemplar_ids:
+                        conflicting_ids.add(exemplar_id)
+                    #self.conflicting_trajectories.append(self.exemplar_trajectories[exemplar_id])
+                if len(conflicting_ids) > 1:
+                    for i in range(0, 2):
+                        self.conflicting_trajectories.append(self.exemplar_trajectories[exemplar_id])
+                    break
 
     def update_abstractions(self):
         self.exemplar_trajectories.append(self.trajectory_trace)
@@ -288,7 +286,7 @@ class AbstractionMachine():
             except:
                 self.depth += 1
                 self.min_obj = 0
-                self.conflicting_trajectories = copy.deepcopy(self.old_conflicting_trajectories)
+                #self.conflicting_trajectories = copy.deepcopy(self.old_conflicting_trajectories)
                 print("Depth insufficient to solve... increasing depth by 1. New Depth: {}".format(self.depth))
                 continue
             # build abstract MDP
@@ -375,7 +373,11 @@ class AbstractionMachine():
                                 choice_types['{}^{}'.format(next_state, j)].append(choice)
                         choice_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = choice
                         reward_table['traj_{}_triple_{}_({}^[{}],{},{}^[{}])_choice'.format(k, l, state, i, action, next_state, j)] = reward
-                        reward_mutex_dict['{}^[{}]'.format(next_state, j)][reward].append(choice)
+                        reward_choice_dict['{},{}'.format(i,j)] = choice
+                        if self.granularity == 'state':
+                            reward_mutex_dict['{}^[{}]'.format(next_state, j)][reward].append(choice)
+                if self.granularity == 'triple':
+                    reward_mutex_dict['({},{},{})'.format(state, action, next_state)][reward].append(reward_choice_dict)
 
                 drp.addConstr(quicksum(choices) == 1, name='choice_constr')
                 constraints += 1
@@ -402,13 +404,25 @@ class AbstractionMachine():
                 constraints += 1
 
         # ensure mutual exclusivity over conflicting reward states
-        for state_j, reward_dict in reward_mutex_dict.items():
-            for reward, choices in reward_dict.items():
-                for _reward, _choices in reward_dict.items():
-                    if reward != _reward:
-                        for choice in choices:
-                            for _choice in _choices:
-                                drp.addConstr(choice + _choice, GRB.LESS_EQUAL, 1, name='reward_mutex_constr')
+        if self.granularity == 'state':
+            for state_j, reward_dict in reward_mutex_dict.items():
+                for reward, choices in reward_dict.items():
+                    for _reward, _choices in reward_dict.items():
+                        if reward != _reward:
+                            for choice in choices:
+                                for _choice in _choices:
+                                    drp.addConstr(choice + _choice, GRB.LESS_EQUAL, 1, name='reward_mutex_constr')
+        elif self.granularity == 'triple':
+            for triple, reward_dict in reward_mutex_dict.items():
+                for reward, choice_reward_dict_list in reward_dict.items():
+                    for choice_reward_dict in choice_reward_dict_list:
+                        for other_reward, other_choice_reward_dict_list in reward_dict.items():
+                            if reward != other_reward:
+                                for other_choice_reward_dict in other_choice_reward_dict_list:
+                                    for choice, choice_var in choice_reward_dict.items():
+                                        if choice in other_choice_reward_dict:
+                                            drp.addConstr(choice_var + other_choice_reward_dict[choice], GRB.LESS_EQUAL, 1, name='reward_mutex_constr')
+
 
         for choice_type, choices in choice_types.items():
             choice_toggle = drp.addVar(name='{}_jump_toggle'.format(choice_type), vtype=GRB.BINARY)
