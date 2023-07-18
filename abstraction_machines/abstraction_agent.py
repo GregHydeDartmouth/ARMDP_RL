@@ -1,5 +1,5 @@
 import random
-from abstraction_machines.abstract_machine_2 import AbstractMachine
+from abstraction_machines.abstract_machine import AbstractMachine
 from collections import defaultdict
 
 class AbstractAgent:
