@@ -9,10 +9,6 @@ from setuptools import setup
 __version__ = '1.0'
 
 REQUIRED_PACKAGES = [
-        'gurobipy',
-        'tqdm',
-        'graphviz',
-        'gym'
 ]
 
 setup(
