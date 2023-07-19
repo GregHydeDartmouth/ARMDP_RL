@@ -41,14 +41,20 @@ class AbstractionMachine():
             for k, trajectory in enumerate(self.conflicting_trajectories):
                 for l, triple in enumerate(trajectory):
                     state, action, reward, next_state = triple
+                    # trajectories always start at base level (i.e., 0 here)
+                    toggle_depth = self.depth
                     if l == 0:
-                        i = 0
-                    for j in range(self.depth):
-                        if self.solution_set['traj_{}_triple_{}_next_state_{}_level_{}'.format(k, l, next_state, j)] == 1:
-                            break
-                    if i != j:
-                        triggers['{}^{},{},{}'.format(state, i, action, next_state)] = j
-                    i = j
+                        toggle_depth = 1
+                    for i in range(0, toggle_depth):
+                        # imposing monotonicity on levels (i.e., can only move up in levels, not down)
+                        j_start = 0
+                        if self.monotonic_levels:
+                            j_start = i
+                        for j in range(j_start, self.depth):
+                            if self.solution_set['traj_{}_triple_{}_({}^{},{},{}^{})'.format(k, l, state, i, action, next_state, j)] == 1:
+                                if i != j:
+                                    triggers['{}^{},{},{}'.format(state, i, action, next_state)] = j
+                                break
         return triggers
 
     def solve(self, depth = 2, min_obj = 0):
@@ -191,3 +197,6 @@ if __name__ == "__main__":
     AM = AbstractionMachine(trajectories, granularity='triple')
     depth, min_obj = AM.solve()
     AM.make_cross_product_graph()
+    triggers = AM.get_triggers()
+    for trigger, level in triggers.items():
+        print(trigger, level)
