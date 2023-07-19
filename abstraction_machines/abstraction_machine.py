@@ -25,7 +25,23 @@ class AbstractionMachine():
                     g.edge(split_state, split_next_state, label='a={}/r={}'.format(action, reward))
                     split_state = split_next_state
             g.render(filename="graphs/AMDP", format="png")
-                    
+
+    def get_triggers(self):
+        if self.solution_set is not None:
+            triggers = dict()
+            for k, trajectory in enumerate(self.conflicting_trajectories):
+                for l, triple in enumerate(trajectory):
+                    state, action, reward, next_state = triple
+                    if l == 0:
+                        i = 0
+                    for j in range(self.depth):
+                        if self.solution_set['traj_{}_triple_{}_next_state_{}_level_{}'.format(k, l, next_state, j)] == 1:
+                            break
+                    if i != j:
+                        triggers['{}^{},{},{}'.format(state, i, action, next_state)] = j
+                    i = j
+        return triggers
+
     def solve(self, depth = 2, min_obj = 0):
         self.depth = depth
         while True:
@@ -47,8 +63,6 @@ class AbstractionMachine():
                 self.solution_set = dict()
                 for v in conflict_resolver.getVars():
                     self.solution_set[v.varName] = v.x
-                    if v.x == 1:
-                        print(v.varName, v.x)
                 break
             else:
                 depth += 1

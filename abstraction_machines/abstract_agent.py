@@ -11,11 +11,13 @@ class AbstractAgent:
         self.conflicting_trajectories = list()
         self.trajectory_mapping = defaultdict(set)
         self.conflict = None
-        self.T = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
         self.QSA = defaultdict(lambda: defaultdict(float))
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
+
+        # used to keep track of the level in each episode
+        self.level = 0
 
         # parameters for abstraction
         self.triggers = dict()
@@ -35,9 +37,19 @@ class AbstractAgent:
         Returns:
             None
         """
+
+        self.trajectory.append((state, action, reward, next_state))
+        state, action, next_state = self._abstract_triple(state, action, next_state)
         self._update_AMDP(state, action, reward, next_state)
         self._update_QSA(state, action, reward, next_state)
-        self.trajectory.append((state, action, reward, next_state))
+
+    def _abstract_triple(self, state, action, next_state):
+        trigger = '{}^{},{},{}'.format(state, self.level, action, next_state)
+        state = '{}^{}'.format(state, self.level)
+        if trigger in self.triggers:
+            self.level = self.triggers[trigger]
+        next_state = '{}^{}'.format(next_state, self.level)
+        return state, action, next_state
 
     def _update_AMDP(self, state, action, reward, next_state):
         if next_state not in self.AMDP[state][action]:
@@ -85,10 +97,14 @@ class AbstractAgent:
         if self.trajectory != []:
             self.trajectories.append(self.trajectory)
         self.trajectory = []
+        self.level = 0
         if self.conflict is not None:
             self.conflicting_trajectories.append(self.trajectories[self.conflict[0]])
             self.conflicting_trajectories.append(self.trajectories[self.conflict[1]])
             self.AM = AbstractionMachine(self.conflicting_trajectories)
             self.depth, self.min_obj = self.AM.solve(depth = self.depth, min_obj = self.min_obj)
             self.triggers = self.AM.get_triggers()
+            for k, v in self.triggers.items():
+                print(k, v)
+            x = input()
             self.conflict = None
