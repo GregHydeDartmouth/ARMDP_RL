@@ -1,5 +1,5 @@
 import random
-from abstraction_machines.abstract_machine import AbstractMachine
+from abstraction_machines.abstraction_machine import AbstractionMachine
 from collections import defaultdict
 
 class AbstractAgent:
@@ -16,6 +16,11 @@ class AbstractAgent:
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
+
+        # parameters for abstraction
+        self.triggers = dict()
+        self.depth = 2
+        self.min_obj = 0
 
     def step(self, state, action, reward, next_state):
         """
@@ -83,6 +88,7 @@ class AbstractAgent:
         if self.conflict is not None:
             self.conflicting_trajectories.append(self.trajectories[self.conflict[0]])
             self.conflicting_trajectories.append(self.trajectories[self.conflict[1]])
-            self.AM = AbstractMachine(self.conflicting_trajectories)
-            self.AM.solve()
+            self.AM = AbstractionMachine(self.conflicting_trajectories)
+            self.depth, self.min_obj = self.AM.solve(depth = self.depth, min_obj = self.min_obj)
+            self.triggers = self.AM.get_triggers()
             self.conflict = None

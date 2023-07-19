@@ -3,7 +3,7 @@ from gurobipy import *
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
-class AbstractMachine():
+class AbstractionMachine():
     def __init__(self, conflicting_trajectories, granularity='state'):
         self.conflicting_trajectories = conflicting_trajectories
         self.granularity = granularity
@@ -52,10 +52,8 @@ class AbstractMachine():
                 break
             else:
                 depth += 1
-                break
-            
         return depth, min_obj
-    
+
     def _sum_to_one_constraint(self, conflict_resolver, depth):
 
         jump_types = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
