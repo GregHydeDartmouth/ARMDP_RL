@@ -112,3 +112,29 @@ class AbstractAgent:
             for k, v in self.triggers.items():
                 print(k, v)
             self.conflict = None
+
+
+if __name__ == "__main__":
+    actions = ['^', '>', '<', 'v']
+    aa = AbstractAgent(actions, granularity='triple', monotonic_levels=True)
+
+    trajectories = []
+    t = [['1', '>', 0, '2'],
+        ['2', '^', 0, '6'],
+        ['6', '^', 0, '10'],
+        ['10', '^', 0, '14'],
+        ['14', '>', 0, '15'],
+        ['15', '>', 1, '16']]
+    trajectories.append(t)
+    t = [['1', '>', 0, '2'],
+        ['2', '^', 0, '6'],
+        ['6', '^', 0, '10'],
+        ['10', '>', 0, '11'],
+        ['11', '^', 0, '15'],
+        ['15', '>', 2, '16']]
+    trajectories.append(t)
+    for trajectory in trajectories:
+        for triple in trajectory:
+            state, action, reward, next_state = triple
+            aa.step(state, action, reward, next_state)
+        aa.reset()
