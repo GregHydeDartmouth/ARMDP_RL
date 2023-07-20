@@ -18,7 +18,14 @@ class OfficeWorld:
         self.rf_pos = self.rf
 
     def _set_reward_function(self, rf_id):
-        if rf_id == 1:
+        if rf_id == 0:
+            rf = {
+                'g' : {
+                    'val' : 1, 'term' : True
+                },
+                'val' : 0, 'term' : False
+            }
+        elif rf_id == 1:
             rf = {
                 'f' : {
                     'g' : {
@@ -93,7 +100,7 @@ class OfficeWorld:
         props = self._get_true_propositions()
         reward, done = self._get_reward(props)
         return reward, self.agent, done
-    
+
     def _get_reward(self, prop):
         done = False
         if prop == 'n':
@@ -103,11 +110,8 @@ class OfficeWorld:
             if prop in self.rf_pos:
                 self.rf_pos = self.rf_pos[prop]
             reward = self.rf_pos['val']
-            if len(list(self.rf_pos.keys())) == 1:
-                done = True
+            done = self.rf_pos['term']
         return reward, done
-
-        
 
     def _get_true_propositions(self):
         """

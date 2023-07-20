@@ -5,8 +5,8 @@ from office_world import OfficeWorld
 from abstraction_machines.abstract_agent import AbstractAgent
 
 actions = [a.value for a in Actions]
-ow = OfficeWorld(rf_id=1)
-aa = AbstractAgent(actions)
+ow = OfficeWorld(rf_id=3)
+aa = AbstractAgent(actions, granularity='state', monotonic_levels=True)
 
 rewards = deque(maxlen=100)
 
@@ -24,5 +24,7 @@ for i in range(0, 1000000000):
             break
     rewards.append(ep_reward)
     reward_avg = np.mean(rewards)
+    if reward_avg > 0.1:
+        aa.exploration_rate = 0
     print("\rEpisode: {} Average reward: {}".format(i, reward_avg), end='')
 

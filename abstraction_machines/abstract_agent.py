@@ -3,7 +3,7 @@ from abstraction_machines.abstraction_machine import AbstractionMachine
 from collections import defaultdict
 
 class AbstractAgent:
-    def __init__(self, actions, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.1):
+    def __init__(self, actions, granularity='state', monotonic_levels=False, learning_rate=0.1, discount_factor=0.95, exploration_rate=0.2):
         self.AMDP = defaultdict(lambda: defaultdict(dict))
         self.actions = actions
         self.trajectory = []
@@ -20,6 +20,8 @@ class AbstractAgent:
         self.level = 0
 
         # parameters for abstraction
+        self.granularity = granularity
+        self.monotonic_levels = monotonic_levels
         self.triggers = dict()
         self.depth = 2
         self.min_obj = 0
@@ -77,7 +79,8 @@ class AbstractAgent:
         Returns:
             The selected action.
         """
-        if random.random() < self.exploration_rate or len(self.AMDP[state]) == 0:
+        state = '{}^{}'.format(state, self.level)
+        if random.random() < self.exploration_rate:
             return random.choice(self.actions)
         else:
             for a in self.actions:
@@ -101,10 +104,11 @@ class AbstractAgent:
         if self.conflict is not None:
             self.conflicting_trajectories.append(self.trajectories[self.conflict[0]])
             self.conflicting_trajectories.append(self.trajectories[self.conflict[1]])
-            self.AM = AbstractionMachine(self.conflicting_trajectories)
+            self.AM = AbstractionMachine(self.conflicting_trajectories, granularity=self.granularity, monotonic_levels=self.monotonic_levels)
             self.depth, self.min_obj = self.AM.solve(depth = self.depth, min_obj = self.min_obj)
             self.triggers = self.AM.get_triggers()
+            self.AMDP = defaultdict(lambda: defaultdict(dict))
+            self.QSA = defaultdict(lambda: defaultdict(float))
             for k, v in self.triggers.items():
                 print(k, v)
-            x = input()
             self.conflict = None

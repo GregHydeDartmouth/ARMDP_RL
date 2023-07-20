@@ -33,7 +33,6 @@ class AbstractionMachine():
                                 g.edge('{}^{}'.format(state, i), '{}^{}'.format(next_state, j), label='a={}/r={}'.format(action, reward))
                                 break
             g.render(filename="graphs/AMDP", format="png")
-            
 
     def get_triggers(self):
         if self.solution_set is not None:
