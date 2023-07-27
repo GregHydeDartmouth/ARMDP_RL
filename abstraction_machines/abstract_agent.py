@@ -65,7 +65,17 @@ class AbstractAgent:
             found_reward = self.AMDP[state][action][next_state]['reward']
             if reward != found_reward:
                 if self.conflict is None:
-                    self.conflict = (list(self.trajectory_mapping[(state,action,found_reward,next_state)])[-1], len(self.trajectories))
+                    min_traj_idx = None
+                    min_traj_len = None
+                    for conflict_traj_idx in list(self.trajectory_mapping[(state,action,found_reward,next_state)]):
+                        if min_traj_idx is None:
+                            min_traj_idx = conflict_traj_idx
+                            min_traj_len = len(self.trajectories[conflict_traj_idx])
+                        else:
+                            if len(self.trajectories[conflict_traj_idx]) < min_traj_len:
+                                min_traj_idx = conflict_traj_idx
+                                min_traj_len = len(self.trajectories[conflict_traj_idx])
+                    self.conflict = (min_traj_idx, len(self.trajectories))
         self.trajectory_mapping[(state,action,reward,next_state)].add(len(self.trajectories))
 
     def _update_QSA(self, state, action, reward, next_state):
