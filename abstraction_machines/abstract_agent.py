@@ -55,7 +55,7 @@ class AbstractAgent:
         next_state = '{}^{}'.format(next_state, self.level)
         return state, action, next_state
 
-    def _update_AMDP(self, state, action, reward, next_state):
+    def _update_AMDP(self, state, action, reward, next_state, make_indices = True):
         if next_state not in self.AMDP[state][action]:
             self.AMDP[state][action][next_state] = {'reward':reward}
         else:
@@ -64,7 +64,7 @@ class AbstractAgent:
                 if self.conflict is None:
                     self.conflict = (list(self.trajectory_mapping[(state,action,found_reward,next_state)])[-1], len(self.trajectories))
         self.trajectory_mapping[(state,action,reward,next_state)].add(len(self.trajectories))
-    
+
     def _update_QSA(self, state, action, reward, next_state):
         max_next_q_value = max(self.QSA[next_state].values()) if next_state in self.QSA else 0
         target_q_value = reward + self.discount_factor * max_next_q_value
@@ -92,7 +92,7 @@ class AbstractAgent:
             max_actions = [a for a in self.actions if self.QSA[state][a] == max_q_value]
             return random.choice(max_actions)
 
-    def reset(self, update_conflicting_trajectories = True):
+    def reset(self, update_conflicting_trajectories = True, make_graph_on_update=False):
         """
         Resets the trajectory and saves a copy to the list of trajectories.
 
@@ -111,26 +111,28 @@ class AbstractAgent:
             self.triggers = self.AM.get_triggers()
             self.AMDP = defaultdict(lambda: defaultdict(dict))
             self.QSA = defaultdict(lambda: defaultdict(float))
-            for k, v in self.triggers.items():
-                print(k, v)
             self.conflict = None
+            self.trajectory_mapping = defaultdict(set)
             if update_conflicting_trajectories:
                 self._update_conflicting_trajectories()
+                if make_graph_on_update:
+                    self.graph_AMDP()
 
     def _update_conflicting_trajectories(self):
         mapped_conflicting_trajectories = []
         for conflicting_trajectory in self.conflicting_trajectories:
             mapped_conflicting_trajectory = []
+            self.reset()
             for conflicting_triple in conflicting_trajectory:
                 state, action, reward, next_state = conflicting_triple
-                # create abstract mappings of triples with step
-                mapped_conflicting_triple = self.step(state, action, reward, next_state)
-                mapped_conflicting_trajectory.append(mapped_conflicting_triple)
+                state, action, reward, next_state = self.step(state, action, reward, next_state)
+                mapped_conflicting_trajectory.append((state, action, reward, next_state))
             mapped_conflicting_trajectories.append(mapped_conflicting_trajectory)
+        self.reset()
         for mapped_conflicting_trajectory in mapped_conflicting_trajectories:
             for mapped_conflicting_triple in reversed(mapped_conflicting_trajectory):
-                ab_state, action, reward, ab_next_state = mapped_conflicting_triple
-                self._update_QSA(ab_state, action, reward, ab_next_state)
+                state, action, reward, next_state = mapped_conflicting_triple
+                self._update_QSA(state, action, reward, next_state)
 
     def graph_AMDP(self):
         g = graphviz.Digraph('aa_AMDP', format='png')
