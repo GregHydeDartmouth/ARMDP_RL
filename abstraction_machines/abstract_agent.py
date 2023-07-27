@@ -48,7 +48,10 @@ class AbstractAgent:
         return state, action, reward, next_state
 
     def _abstract_triple(self, state, action, next_state):
-        trigger = '{}^{},{},{}'.format(state, self.level, action, next_state)
+        if self.granularity == 'state':
+            trigger = '{},{}'.format(self.level, next_state)
+        elif self.granularity == 'triple':
+            trigger = '{}^{},{},{}'.format(state, self.level, action, next_state)
         state = '{}^{}'.format(state, self.level)
         if trigger in self.triggers:
             self.level = self.triggers[trigger]
@@ -103,6 +106,7 @@ class AbstractAgent:
             self.trajectories.append(self.trajectory)
         self.trajectory = []
         self.level = 0
+        solved_conflict = False
         if self.conflict is not None:
             self.conflicting_trajectories.append(self.trajectories[self.conflict[0]])
             self.conflicting_trajectories.append(self.trajectories[self.conflict[1]])
@@ -117,6 +121,9 @@ class AbstractAgent:
                 self._update_conflicting_trajectories()
                 if make_graph_on_update:
                     self.graph_AMDP()
+            solved_conflict = True
+        return solved_conflict
+    
 
     def _update_conflicting_trajectories(self):
         mapped_conflicting_trajectories = []
@@ -150,8 +157,9 @@ class AbstractAgent:
 
 if __name__ == "__main__":
     actions = ['^', '>', '<', 'v']
-    aa = AbstractAgent(actions, granularity='triple', monotonic_levels=True)
-
+    granularity = 'state'
+    aa = AbstractAgent(actions, granularity=granularity, monotonic_levels=True)
+    conflicts = 0
     trajectories = []
     t = [['1', '>', 0, '2'],
         ['2', '^', 0, '6'],
@@ -171,5 +179,22 @@ if __name__ == "__main__":
         for triple in trajectory:
             state, action, reward, next_state = triple
             aa.step(state, action, reward, next_state)
-        aa.reset()
+        solved_conflict = aa.reset()
+        if solved_conflict:
+            conflicts += 1
+    # if running granularity == 'state' this shouldn't trigger a resolve
+    t = [['1', '>', 0, '2'],
+        ['2', '^', 0, '6'],
+        ['6', '^', 0, '10'],
+        ['10', 'v', 0, '11'],
+        ['11', '^', 0, '15'],
+        ['15', '>', 2, '16']]
+    for triple in t:
+        state, action, reward, next_state = triple
+        aa.step(state, action, reward, next_state)
+    solved_conflict = aa.reset()
+    if solved_conflict:
+            conflicts += 1
+    if granularity == 'state':
+        assert conflicts == 1, "state granularity not detected correctly"
     aa.graph_AMDP()

@@ -52,7 +52,10 @@ class AbstractionMachine():
                         for j in range(j_start, self.depth):
                             if self.solution_set['traj_{}_triple_{}_({}^{},{},{}^{})'.format(k, l, state, i, action, next_state, j)] == 1:
                                 if i != j:
-                                    triggers['{}^{},{},{}'.format(state, i, action, next_state)] = j
+                                    if self.granularity == 'state':
+                                        triggers['{},{}'.format(i, next_state)] = j
+                                    elif self.granularity == 'triple':
+                                        triggers['{}^{},{},{}'.format(state, i, action, next_state)] = j
                                 break
         return triggers
 
