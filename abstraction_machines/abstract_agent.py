@@ -1,4 +1,5 @@
 import random
+import graphviz
 from abstraction_machines.abstraction_machine import AbstractionMachine
 from collections import defaultdict
 
@@ -44,6 +45,7 @@ class AbstractAgent:
         state, action, next_state = self._abstract_triple(state, action, next_state)
         self._update_AMDP(state, action, reward, next_state)
         self._update_QSA(state, action, reward, next_state)
+        return state, action, reward, next_state
 
     def _abstract_triple(self, state, action, next_state):
         trigger = '{}^{},{},{}'.format(state, self.level, action, next_state)
@@ -90,7 +92,7 @@ class AbstractAgent:
             max_actions = [a for a in self.actions if self.QSA[state][a] == max_q_value]
             return random.choice(max_actions)
 
-    def reset(self):
+    def reset(self, update_conflicting_trajectories = True):
         """
         Resets the trajectory and saves a copy to the list of trajectories.
 
@@ -112,6 +114,36 @@ class AbstractAgent:
             for k, v in self.triggers.items():
                 print(k, v)
             self.conflict = None
+            if update_conflicting_trajectories:
+                self._update_conflicting_trajectories()
+
+    def _update_conflicting_trajectories(self):
+        mapped_conflicting_trajectories = []
+        for conflicting_trajectory in self.conflicting_trajectories:
+            mapped_conflicting_trajectory = []
+            for conflicting_triple in conflicting_trajectory:
+                state, action, reward, next_state = conflicting_triple
+                # create abstract mappings of triples with step
+                mapped_conflicting_triple = self.step(state, action, reward, next_state)
+                mapped_conflicting_trajectory.append(mapped_conflicting_triple)
+            mapped_conflicting_trajectories.append(mapped_conflicting_trajectory)
+        for mapped_conflicting_trajectory in mapped_conflicting_trajectories:
+            for mapped_conflicting_triple in reversed(mapped_conflicting_trajectory):
+                ab_state, action, reward, ab_next_state = mapped_conflicting_triple
+                self._update_QSA(ab_state, action, reward, ab_next_state)
+
+    def graph_AMDP(self):
+        g = graphviz.Digraph('aa_AMDP', format='png')
+        # self.AMDP[state][action][next_state] = {'reward':reward}
+        for state in self.AMDP:
+            for action in self.AMDP[state]:
+                for next_state in self.AMDP[state][action]:
+                    reward = self.AMDP[state][action][next_state]['reward']
+                    qsa = self.QSA[state][action]
+                    g.node(state, shape='box')
+                    g.node(next_state, shape='box')
+                    g.edge(state, next_state, label='a={}/r={}/qsa={}'.format(action, reward, qsa))
+        g.render(filename="graphs/aa_AMDP", format="png")
 
 
 if __name__ == "__main__":
@@ -138,3 +170,4 @@ if __name__ == "__main__":
             state, action, reward, next_state = triple
             aa.step(state, action, reward, next_state)
         aa.reset()
+    aa.graph_AMDP()

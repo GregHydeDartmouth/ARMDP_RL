@@ -10,9 +10,9 @@ class AbstractionMachine():
         self.monotonic_levels = monotonic_levels
         self.solution_set = None
 
-    def make_cross_product_graph(self):
+    def graph_AMDP(self):
         if self.solution_set is not None:
-            g = graphviz.Digraph('AMDP', format='png')
+            g = graphviz.Digraph('am_AMDP', format='png')
 
             for k, trajectory in enumerate(self.conflicting_trajectories):
                 for l, triple in enumerate(trajectory):
@@ -32,7 +32,7 @@ class AbstractionMachine():
                                 g.node('{}^{}'.format(next_state, j), shape='box')
                                 g.edge('{}^{}'.format(state, i), '{}^{}'.format(next_state, j), label='a={}/r={}'.format(action, reward))
                                 break
-            g.render(filename="graphs/AMDP", format="png")
+            g.render(filename="graphs/am_AMDP", format="png")
 
     def get_triggers(self):
         if self.solution_set is not None:
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     trajectories.append(t)
     AM = AbstractionMachine(trajectories, granularity='triple')
     depth, min_obj = AM.solve()
-    AM.make_cross_product_graph()
+    AM.graph_AMDP()
     triggers = AM.get_triggers()
     for trigger, level in triggers.items():
         print(trigger, level)
