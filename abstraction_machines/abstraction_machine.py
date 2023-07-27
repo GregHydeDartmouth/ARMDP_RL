@@ -84,6 +84,7 @@ class AbstractionMachine():
                 break
             else:
                 depth += 1
+                min_obj = 1
         return depth, min_obj
 
     def _sum_to_one_constraint(self, conflict_resolver, depth):
