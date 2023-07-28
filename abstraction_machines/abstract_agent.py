@@ -80,7 +80,7 @@ class AbstractAgent:
 
     def _update_QSA(self, state, action, reward, next_state, done):
         max_next_q_value = max(self.QSA[next_state].values()) if next_state in self.QSA else 0
-        target_q_value = reward + self.discount_factor * max_next_q_value * done
+        target_q_value = reward + self.discount_factor * max_next_q_value * (1-done)
         current_q_value = self.QSA[state][action]
         self.QSA[state][action] += self.learning_rate * (target_q_value - current_q_value)
 
@@ -131,9 +131,9 @@ class AbstractAgent:
                 self._update_conflicting_trajectories()
                 if make_graph_on_update:
                     self.graph_AMDP()
+                    self.graph_RM()
             solved_conflict = True
         return solved_conflict
-    
 
     def _update_conflicting_trajectories(self):
         mapped_conflicting_trajectories = []
@@ -197,6 +197,7 @@ class AbstractAgent:
                         edges[(rm_state, node_2)].add(_label)
                     break
         for edge_nodes, edge_types in edges.items():
+            if edge_nodes[1] != 'term':
                 edge_label = None
                 reward = None
                 for edge_type in edge_types:
@@ -208,6 +209,14 @@ class AbstractAgent:
                         edge_label += 'V{}'.format(symbol)
                     assert _reward == reward, 'stochasticity in RM results'
                 g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
+            else:
+                reward_labels = defaultdict(set)
+                for edge_type in edge_types:
+                    symbol, reward = edge_type.split('/')
+                    reward_labels[reward].add(symbol)
+                for reward, symbols in reward_labels.items():
+                    edge_label = 'V'.join(symbols)
+                    g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
         g.render(filename="graphs/aa_RM", format="png")
 
 if __name__ == "__main__":

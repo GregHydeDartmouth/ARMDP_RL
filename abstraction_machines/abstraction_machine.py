@@ -39,7 +39,7 @@ class AbstractionMachine():
                                     g.edge('{}^{}'.format(next_state, j), 'term')
                                 break
             g.render(filename="graphs/am_AMDP", format="png")
-    
+
     def graph_RM(self):
         if self.solution_set is not None:
             g = graphviz.Digraph('am_RM', format='png')
@@ -73,18 +73,27 @@ class AbstractionMachine():
                                 if _label not in edges[(node_1, node_2)]:
                                         edges[(node_1, node_2)].add(_label)
             for edge_nodes, edge_types in edges.items():
-                edge_label = None
-                reward = None
-                for edge_type in edge_types:
-                    symbol, _reward = edge_type.split('/')
-                    if edge_label is None:
-                        edge_label = symbol
-                        reward = _reward
-                    else:
-                        edge_label += 'V{}'.format(symbol)
-                    assert _reward == reward, 'stochasticity in RM results'
-                g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
-                
+                if edge_nodes[1] != 'term':
+                    edge_label = None
+                    reward = None
+                    for edge_type in edge_types:
+                        symbol, _reward = edge_type.split('/')
+                        if edge_label is None:
+                            edge_label = symbol
+                            reward = _reward
+                        else:
+                            edge_label += 'V{}'.format(symbol)
+                        assert _reward == reward, 'stochasticity in RM results'
+                    g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
+                else:
+                    reward_labels = defaultdict(set)
+                    for edge_type in edge_types:
+                        symbol, reward = edge_type.split('/')
+                        reward_labels[reward].add(symbol)
+                    for reward, symbols in reward_labels.items():
+                        edge_label = 'V'.join(symbols)
+                        g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
+
             g.render(filename="graphs/am_RM", format="png")
 
     def get_triggers(self):
