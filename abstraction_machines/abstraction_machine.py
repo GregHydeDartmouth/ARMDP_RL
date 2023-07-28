@@ -73,7 +73,7 @@ class AbstractionMachine():
             conflict_resolver.addConstr(z == quicksum(level_change_indicators), name='objective_constr')
             conflict_resolver.addConstr(z >= min_obj, name='objective_floor_constr')
             conflict_resolver.setObjective(z, GRB.MINIMIZE)
-            conflict_resolver.write('test.lp')
+            print("\nCurrent Depth: {}, Current min obj: {}".format(depth, min_obj))
             conflict_resolver.optimize()
             if conflict_resolver.status == GRB.OPTIMAL:
                 min_obj = conflict_resolver.objVal
@@ -128,8 +128,6 @@ class AbstractionMachine():
                             transition_ambiguity_dict['{},{},{}'.format(state, action, next_state)][i][j].append(triple_toggle)
                             # for reward ambiguity
                             reward_ambiguity_dict['{},{},{}'.format(state, action, next_state)][i][j][reward].append(triple_toggle)
-                        
-                        
                 ## TRAJECTORY CONTINUITY CONSTR
                 for prev_next_state_level, next_state_level_toggles in prev_toggles_by_next_state_level.items():
                     state_level_toggles = toggles_by_state_level[prev_next_state_level]
@@ -140,7 +138,7 @@ class AbstractionMachine():
                 conflict_resolver.addConstr(quicksum(split_triples) == 1)
 
         return transition_ambiguity_dict, reward_ambiguity_dict
-    
+
     def _reward_ambiguity_constraint(self, reward_ambiguity_dict, conflict_resolver):
 
         for toggle_type, i_dict in reward_ambiguity_dict.items():
@@ -157,7 +155,7 @@ class AbstractionMachine():
                         toggle_type_indicators.append(toggle_type_indicator)
                     ## REWARD AMBIGUITY CONSTR
                     conflict_resolver.addConstr(quicksum(toggle_type_indicators) <= 1)
-                    
+
     def _transition_ambiguity_constraint(self, transition_ambiguity_dict, conflict_resolver):
         level_change_indicators = []
         for toggle_type, i_dict in transition_ambiguity_dict.items():
