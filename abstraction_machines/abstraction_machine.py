@@ -13,10 +13,10 @@ class AbstractionMachine():
     def graph_AMDP(self):
         if self.solution_set is not None:
             g = graphviz.Digraph('am_AMDP', format='png')
-
+            edges = defaultdict(set)
             for k, trajectory in enumerate(self.conflicting_trajectories):
                 for l, triple in enumerate(trajectory):
-                    state, action, reward, next_state = triple
+                    state, action, reward, next_state, done = triple
                     # trajectories always start at base level (i.e., 0 here)
                     toggle_depth = self.depth
                     if l == 0:
@@ -28,18 +28,71 @@ class AbstractionMachine():
                             j_start = i
                         for j in range(j_start, self.depth):
                             if self.solution_set['traj_{}_triple_{}_({}^{},{},{}^{})'.format(k, l, state, i, action, next_state, j)] == 1:
-                                g.node('{}^{}'.format(state, i), shape='box')
-                                g.node('{}^{}'.format(next_state, j), shape='box')
-                                g.edge('{}^{}'.format(state, i), '{}^{}'.format(next_state, j), label='a={}/r={}'.format(action, reward))
+                                g.node('{}^{}'.format(state, i), shape='circle')
+                                g.node('{}^{}'.format(next_state, j), shape='circle')
+                                _label = 'a={}/r={}'.format(action, reward)
+                                if _label not in edges[('{}^{}'.format(state, i), '{}^{}'.format(next_state, j))]:
+                                    g.edge('{}^{}'.format(state, i), '{}^{}'.format(next_state, j), label=_label)
+                                    edges[('{}^{}'.format(state, i), '{}^{}'.format(next_state, j))].add(_label)
+                                if done:
+                                    g.node('term', shape='box', color='red')
+                                    g.edge('{}^{}'.format(next_state, j), 'term')
                                 break
             g.render(filename="graphs/am_AMDP", format="png")
+    
+    def graph_RM(self):
+        if self.solution_set is not None:
+            g = graphviz.Digraph('am_RM', format='png')
+            edges = defaultdict(set)
+            for k, trajectory in enumerate(self.conflicting_trajectories):
+                for l, triple in enumerate(trajectory):
+                    state, action, reward, next_state, done = triple
+                    # trajectories always start at base level (i.e., 0 here)
+                    toggle_depth = self.depth
+                    if l == 0:
+                        toggle_depth = 1
+                    for i in range(0, toggle_depth):
+                        # imposing monotonicity on levels (i.e., can only move up in levels, not down)
+                        j_start = 0
+                        if self.monotonic_levels:
+                            j_start = i
+                        for j in range(j_start, self.depth):
+                            if self.solution_set['traj_{}_triple_{}_({}^{},{},{}^{})'.format(k, l, state, i, action, next_state, j)] == 1:
+                                node_1 = str(i)
+                                g.node(node_1, shape='circle')
+                                if self.granularity == 'state':
+                                    _label = '{}/{}'.format(next_state, reward)
+                                elif self.granularity == 'triple':
+                                    _label = '({},{},{})/{}'.format(state, action, next_state, reward)
+                                if done:
+                                    node_2 = 'term'
+                                    g.node(node_2, shape='box', color='red')
+                                else:
+                                    node_2 = str(j)
+                                    g.node(str(j), shape='circle')
+                                if _label not in edges[(node_1, node_2)]:
+                                        edges[(node_1, node_2)].add(_label)
+            for edge_nodes, edge_types in edges.items():
+                edge_label = None
+                reward = None
+                for edge_type in edge_types:
+                    symbol, _reward = edge_type.split('/')
+                    if edge_label is None:
+                        edge_label = symbol
+                        reward = _reward
+                    else:
+                        edge_label += 'V{}'.format(symbol)
+                    assert _reward == reward, 'stochasticity in RM results'
+                g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
+                
+            g.render(filename="graphs/am_RM", format="png")
 
     def get_triggers(self):
         if self.solution_set is not None:
             triggers = dict()
             for k, trajectory in enumerate(self.conflicting_trajectories):
                 for l, triple in enumerate(trajectory):
-                    state, action, reward, next_state = triple
+                    state, action, _, next_state, _ = triple
                     # trajectories always start at base level (i.e., 0 here)
                     toggle_depth = self.depth
                     if l == 0:
@@ -94,7 +147,7 @@ class AbstractionMachine():
         for k, trajectory in enumerate(self.conflicting_trajectories):
             prev_toggles_by_next_state_level = defaultdict(list)
             for l, triple in enumerate(trajectory):
-                state, action, reward, next_state = triple
+                state, action, reward, next_state, _ = triple
 
                 # trajectories always start at base level (i.e., 0 here)
                 toggle_depth = depth
@@ -181,23 +234,24 @@ if __name__ == "__main__":
                    '>' : '3'}
 
     trajectories = []
-    t = [['1', actions['>'], 0, '2'],
-            ['2', actions['^'], 0, '6'],
-            ['6', actions['^'], 0, '10'],
-            ['10', actions['^'], 0, '14'],
-            ['14', actions['>'], 0, '15'],
-            ['15', actions['>'], 1, '16']]
+    t = [['1', actions['>'], 0, '2', False],
+            ['2', actions['^'], 0, '6', False],
+            ['6', actions['^'], 0, '10', False],
+            ['10', actions['^'], 0, '14', False],
+            ['14', actions['>'], 0, '15', False],
+            ['15', actions['>'], 1, '16', True]]
     trajectories.append(t)
-    t = [['1', actions['>'], 0, '2'],
-            ['2', actions['^'], 0, '6'],
-            ['6', actions['^'], 0, '10'],
-            ['10', actions['>'], 0, '11'],
-            ['11', actions['^'], 0, '15'],
-            ['15', actions['>'], 2, '16']]
+    t = [['1', actions['>'], 0, '2', False],
+            ['2', actions['^'], 0, '6', False],
+            ['6', actions['^'], 0, '10', False],
+            ['10', actions['>'], 0, '11', False],
+            ['11', actions['^'], 0, '15', False],
+            ['15', actions['>'], 2, '16', True]]
     trajectories.append(t)
-    AM = AbstractionMachine(trajectories, granularity='triple')
+    AM = AbstractionMachine(trajectories, granularity='state')
     depth, min_obj = AM.solve()
     AM.graph_AMDP()
+    AM.graph_RM()
     triggers = AM.get_triggers()
     for trigger, level in triggers.items():
         print(trigger, level)

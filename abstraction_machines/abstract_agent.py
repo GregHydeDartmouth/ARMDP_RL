@@ -27,7 +27,7 @@ class AbstractAgent:
         self.depth = 2
         self.min_obj = 0
 
-    def step(self, state, action, reward, next_state):
+    def step(self, state, action, reward, next_state, done):
         """
         Performs a single step of the agent in the environment and updates the trajectory.
 
@@ -41,10 +41,10 @@ class AbstractAgent:
             None
         """
 
-        self.trajectory.append((state, action, reward, next_state))
+        self.trajectory.append((state, action, reward, next_state, done))
         state, action, next_state = self._abstract_triple(state, action, next_state)
-        self._update_AMDP(state, action, reward, next_state)
-        self._update_QSA(state, action, reward, next_state)
+        self._update_AMDP(state, action, reward, next_state, done)
+        self._update_QSA(state, action, reward, next_state, done)
         return state, action, reward, next_state
 
     def _abstract_triple(self, state, action, next_state):
@@ -58,9 +58,9 @@ class AbstractAgent:
         next_state = '{}^{}'.format(next_state, self.level)
         return state, action, next_state
 
-    def _update_AMDP(self, state, action, reward, next_state, make_indices = True):
+    def _update_AMDP(self, state, action, reward, next_state, done):
         if next_state not in self.AMDP[state][action]:
-            self.AMDP[state][action][next_state] = {'reward':reward}
+            self.AMDP[state][action][next_state] = {'reward':reward, 'done':done}
         else:
             found_reward = self.AMDP[state][action][next_state]['reward']
             if reward != found_reward:
@@ -78,9 +78,9 @@ class AbstractAgent:
                     self.conflict = (min_traj_idx, len(self.trajectories))
         self.trajectory_mapping[(state,action,reward,next_state)].add(len(self.trajectories))
 
-    def _update_QSA(self, state, action, reward, next_state):
+    def _update_QSA(self, state, action, reward, next_state, done):
         max_next_q_value = max(self.QSA[next_state].values()) if next_state in self.QSA else 0
-        target_q_value = reward + self.discount_factor * max_next_q_value
+        target_q_value = reward + self.discount_factor * max_next_q_value * done
         current_q_value = self.QSA[state][action]
         self.QSA[state][action] += self.learning_rate * (target_q_value - current_q_value)
 
@@ -141,70 +141,116 @@ class AbstractAgent:
             mapped_conflicting_trajectory = []
             self.reset()
             for conflicting_triple in conflicting_trajectory:
-                state, action, reward, next_state = conflicting_triple
-                state, action, reward, next_state = self.step(state, action, reward, next_state)
-                mapped_conflicting_trajectory.append((state, action, reward, next_state))
+                state, action, reward, next_state, done = conflicting_triple
+                state, action, reward, next_state = self.step(state, action, reward, next_state, done)
+                mapped_conflicting_trajectory.append((state, action, reward, next_state, done))
             mapped_conflicting_trajectories.append(mapped_conflicting_trajectory)
         self.reset()
         for mapped_conflicting_trajectory in mapped_conflicting_trajectories:
             for mapped_conflicting_triple in reversed(mapped_conflicting_trajectory):
-                state, action, reward, next_state = mapped_conflicting_triple
-                self._update_QSA(state, action, reward, next_state)
+                state, action, reward, next_state, done = mapped_conflicting_triple
+                self._update_QSA(state, action, reward, next_state, done)
 
     def graph_AMDP(self):
         g = graphviz.Digraph('aa_AMDP', format='png')
-        # self.AMDP[state][action][next_state] = {'reward':reward}
+        edges = defaultdict(set)
         for state in self.AMDP:
             for action in self.AMDP[state]:
                 for next_state in self.AMDP[state][action]:
                     reward = self.AMDP[state][action][next_state]['reward']
+                    done = self.AMDP[state][action][next_state]['done']
                     qsa = self.QSA[state][action]
-                    g.node(state, shape='box')
-                    g.node(next_state, shape='box')
-                    g.edge(state, next_state, label='a={}/r={}/qsa={}'.format(action, reward, qsa))
+                    g.node(state, shape='circle')
+                    g.node(next_state, shape='circle')
+                    _label = 'a={}/r={}/qsa={}'.format(action, reward, qsa)
+                    if _label not in edges[(state, next_state)]:
+                        g.edge(state, next_state, label=_label)
+                        edges[((state, next_state))].add(_label)
+                    if done:
+                        g.node('term', shape='box', color='red')
+                        g.edge(next_state, 'term')
         g.render(filename="graphs/aa_AMDP", format="png")
 
+    def graph_RM(self):
+        g = graphviz.Digraph('am_RM', format='png')
+        edges = defaultdict(set)
+        for state in self.AMDP:
+            for action in self.AMDP[state]:
+                for next_state in self.AMDP[state][action]:
+                    reward = self.AMDP[state][action][next_state]['reward']
+                    done = self.AMDP[state][action][next_state]['done']
+                    _state, rm_state = state.split('^')
+                    _next_state, rm_next_state = next_state.split('^')
+
+                    g.node(rm_state, shape='circle')
+                    if self.granularity == 'state':
+                        _label = '{}/{}'.format(_next_state, reward)
+                    elif self.granularity == 'triple':
+                        _label = '({},{},{})/{}'.format(_state, action, _next_state, reward)
+                    if done:
+                        node_2 = 'term'
+                        g.node(node_2, shape='box', color='red')
+                    else:
+                        node_2 = rm_next_state
+                        g.node(node_2, shape='circle')
+                    if _label not in edges[(rm_state, node_2)]:
+                        edges[(rm_state, node_2)].add(_label)
+                    break
+        for edge_nodes, edge_types in edges.items():
+                edge_label = None
+                reward = None
+                for edge_type in edge_types:
+                    symbol, _reward = edge_type.split('/')
+                    if edge_label is None:
+                        edge_label = symbol
+                        reward = _reward
+                    else:
+                        edge_label += 'V{}'.format(symbol)
+                    assert _reward == reward, 'stochasticity in RM results'
+                g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
+        g.render(filename="graphs/aa_RM", format="png")
 
 if __name__ == "__main__":
     actions = ['^', '>', '<', 'v']
-    granularity = 'state'
+    granularity = 'triple'
     aa = AbstractAgent(actions, granularity=granularity, monotonic_levels=True)
     conflicts = 0
     trajectories = []
-    t = [['1', '>', 0, '2'],
-        ['2', '^', 0, '6'],
-        ['6', '^', 0, '10'],
-        ['10', '^', 0, '14'],
-        ['14', '>', 0, '15'],
-        ['15', '>', 1, '16']]
+    t = [['1', '>', 0, '2', False],
+        ['2', '^', 0, '6', False],
+        ['6', '^', 0, '10', False],
+        ['10', '^', 0, '14', False],
+        ['14', '>', 0, '15', False],
+        ['15', '>', 1, '16', True]]
     trajectories.append(t)
-    t = [['1', '>', 0, '2'],
-        ['2', '^', 0, '6'],
-        ['6', '^', 0, '10'],
-        ['10', '>', 0, '11'],
-        ['11', '^', 0, '15'],
-        ['15', '>', 2, '16']]
+    t = [['1', '>', 0, '2', False],
+        ['2', '^', 0, '6', False],
+        ['6', '^', 0, '10', False],
+        ['10', '>', 0, '11', False],
+        ['11', '^', 0, '15', False],
+        ['15', '>', 2, '16', True]]
     trajectories.append(t)
     for trajectory in trajectories:
         for triple in trajectory:
-            state, action, reward, next_state = triple
-            aa.step(state, action, reward, next_state)
+            state, action, reward, next_state, done = triple
+            aa.step(state, action, reward, next_state, done)
         solved_conflict = aa.reset()
         if solved_conflict:
             conflicts += 1
     # if running granularity == 'state' this shouldn't trigger a resolve
-    t = [['1', '>', 0, '2'],
-        ['2', '^', 0, '6'],
-        ['6', '^', 0, '10'],
-        ['10', 'v', 0, '11'],
-        ['11', '^', 0, '15'],
-        ['15', '>', 2, '16']]
+    t = [['1', '>', 0, '2', False],
+        ['2', '^', 0, '6', False],
+        ['6', '^', 0, '10', False],
+        ['10', 'v', 0, '11', False],
+        ['11', '^', 0, '15', False],
+        ['15', '>', 2, '16', True]]
     for triple in t:
-        state, action, reward, next_state = triple
-        aa.step(state, action, reward, next_state)
+        state, action, reward, next_state, done = triple
+        aa.step(state, action, reward, next_state, done)
     solved_conflict = aa.reset()
     if solved_conflict:
             conflicts += 1
     if granularity == 'state':
         assert conflicts == 1, "state granularity not detected correctly"
     aa.graph_AMDP()
+    aa.graph_RM()

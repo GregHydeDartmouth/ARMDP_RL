@@ -17,7 +17,7 @@ for i in range(0, 100000):
     for j in range(0, max_steps):
         action = aa.choose_action(state)
         reward, next_state, done = ow.execute_action(action)
-        aa.step(state, action, reward, next_state)
+        aa.step(state, action, reward, next_state, done)
         state = next_state
         ep_reward += reward
         if done:
