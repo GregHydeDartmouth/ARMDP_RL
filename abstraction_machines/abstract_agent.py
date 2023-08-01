@@ -1,3 +1,4 @@
+import json
 import random
 import graphviz
 from abstraction_machines.abstraction_machine import AbstractionMachine
@@ -26,6 +27,11 @@ class AbstractAgent:
         self.triggers = dict()
         self.depth = 2
         self.min_obj = 0
+
+    def save_triggers(self, name):
+        with open('models/{}.json'.format(name), 'w') as f:
+            json.dump(self.triggers, f)
+
 
     def step(self, state, action, reward, next_state, done):
         """
@@ -221,7 +227,7 @@ class AbstractAgent:
 
 if __name__ == "__main__":
     actions = ['^', '>', '<', 'v']
-    granularity = 'triple'
+    granularity = 'state'
     aa = AbstractAgent(actions, granularity=granularity, monotonic_levels=True)
     conflicts = 0
     trajectories = []
@@ -263,3 +269,4 @@ if __name__ == "__main__":
         assert conflicts == 1, "state granularity not detected correctly"
     aa.graph_AMDP()
     aa.graph_RM()
+    aa.save_triggers('test')
