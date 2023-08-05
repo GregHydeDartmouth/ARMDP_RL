@@ -87,7 +87,7 @@ class OfficeWorld:
 
 
     def reset(self):
-        self.agent = (2, 1)
+        self.agent = [2, 1]
         self.rf_pos = self.rf
         return self.agent
 

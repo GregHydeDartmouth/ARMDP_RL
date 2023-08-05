@@ -18,11 +18,13 @@ class QNet(nn.Module):
 
     def forward(self, x):
         hidden = F.relu(self.Linear1(x))
-        return self.Linear2(hidden), hidden
+        return self.Linear2(hidden)
 
 class DQN(nn.Module):
-    def __init__(self, state_space, action_space, hidden_space=128, lr=1e-3, tau=0.001, batch=32, discount=0.95, capacity=10000):
+    def __init__(self, state_space, action_space, hidden_space=128, lr=1e-3, tau=0.001, batch=32, discount=0.95, capacity=100000, seed=1):
         super(DQN, self).__init__()
+        np.random.seed(seed)
+        random.seed(seed)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.state_space = state_space
         self.action_space = action_space
@@ -42,16 +44,15 @@ class DQN(nn.Module):
 
     def act(self, state, epsilon=0.1):
         if random.random() < epsilon:
-            return random.randint(0, self.action_space - 1), None
+            return random.randint(0, self.action_space - 1)
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(self.device)
-                q_values, hidden = self.q_net(state)
-                return torch.argmax(q_values, dim=0).item(), hidden
+                q_values = self.q_net(state)
+                return torch.argmax(q_values, dim=0).item()
 
     def step(self, state, action, reward, next_state, done):
         self.replay_buffer.push(state, action, reward, next_state, done)
-        self.train()
 
     def train(self):
         if len(self.replay_buffer) > self.batch:
@@ -62,8 +63,8 @@ class DQN(nn.Module):
             next_states = torch.FloatTensor(next_states).to(self.device)
             dones = torch.FloatTensor(dones).to(self.device)
 
-            q_values, _ = self.q_net(states)
-            next_q_values, _ = self.target_q_net(next_states)
+            q_values = self.q_net(states)
+            next_q_values = self.target_q_net(next_states)
 
             q_value = q_values.gather(1, actions)
             next_q_value, _ = torch.max(next_q_values, dim=1, keepdim=True)
