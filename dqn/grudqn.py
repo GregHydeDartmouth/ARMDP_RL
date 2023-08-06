@@ -6,15 +6,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 from collections import deque
 
-class RQNet(nn.Module):
+class GRUQNet(nn.Module):
     def __init__(self, state_space, action_space, hidden_space):
-        super(RQNet, self).__init__()
+        super(GRUQNet, self).__init__()
 
         self.state_space = state_space
         self.action_space = action_space
         self.hidden_space = hidden_space
 
-        self.rnn = nn.RNN(self.state_space, self.hidden_space, batch_first=True)
+        self.rnn = nn.GRU(self.state_space, self.hidden_space, batch_first=True)
         self.Linear1 = nn.Linear(self.hidden_space, self.hidden_space)
         self.Linear2 = nn.Linear(self.hidden_space, self.action_space)
 
@@ -23,9 +23,9 @@ class RQNet(nn.Module):
         x = F.relu(self.Linear1(x))
         return self.Linear2(x), h_prime
 
-class RDQN(object):
+class GRUDQN(object):
     def __init__(self, state_space, action_space, hidden_space=128, lr=1e-3, tau=0.001, discount=0.95, capacity=1000, seed=1):
-        super(RDQN, self).__init__()
+        super(GRUDQN, self).__init__()
         np.random.seed(seed)
         random.seed(seed)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -37,8 +37,8 @@ class RDQN(object):
         self.discount = discount
         self.capacity = capacity
 
-        self.q_net = RQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
-        self.target_q_net = RQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
+        self.q_net = GRUQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
+        self.target_q_net = GRUQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
         self.target_q_net.load_state_dict(self.q_net.state_dict())
 
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)

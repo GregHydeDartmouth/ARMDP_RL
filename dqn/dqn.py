@@ -14,11 +14,13 @@ class QNet(nn.Module):
         self.action_space = action_space
 
         self.Linear1 = nn.Linear(state_space, self.hidden_space)
-        self.Linear2 = nn.Linear(self.hidden_space, action_space)
+        self.Linear2 = nn.Linear(self.hidden_space, self.hidden_space)
+        self.Linear3 = nn.Linear(self.hidden_space, self.action_space)
 
     def forward(self, x):
-        hidden = F.relu(self.Linear1(x))
-        return self.Linear2(hidden)
+        x = F.relu(self.Linear1(x))
+        x = F.relu(self.Linear2(x))
+        return self.Linear3(x)
 
 class DQN(nn.Module):
     def __init__(self, state_space, action_space, hidden_space=128, lr=1e-3, tau=0.001, batch=32, discount=0.95, capacity=100000, seed=1):

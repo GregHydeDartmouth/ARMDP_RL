@@ -6,26 +6,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 from collections import deque
 
-class RQNet(nn.Module):
+class LSTMQNet(nn.Module):
     def __init__(self, state_space, action_space, hidden_space):
-        super(RQNet, self).__init__()
+        super(LSTMQNet, self).__init__()
 
         self.state_space = state_space
         self.action_space = action_space
         self.hidden_space = hidden_space
 
-        self.rnn = nn.RNN(self.state_space, self.hidden_space, batch_first=True)
+        self.rnn = nn.LSTM(self.state_space, self.hidden_space, batch_first=True)
         self.Linear1 = nn.Linear(self.hidden_space, self.hidden_space)
         self.Linear2 = nn.Linear(self.hidden_space, self.action_space)
 
-    def forward(self, x, h):
-        x, h_prime = self.rnn(x, h)
+    def forward(self, x, h, c):
+        x, (h_prime, c_prime) = self.rnn(x, (h,c))
         x = F.relu(self.Linear1(x))
-        return self.Linear2(x), h_prime
+        return self.Linear2(x), h_prime, c_prime
 
-class RDQN(object):
+class LSTMDQN(object):
     def __init__(self, state_space, action_space, hidden_space=128, lr=1e-3, tau=0.001, discount=0.95, capacity=1000, seed=1):
-        super(RDQN, self).__init__()
+        super(LSTMDQN, self).__init__()
         np.random.seed(seed)
         random.seed(seed)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -37,8 +37,8 @@ class RDQN(object):
         self.discount = discount
         self.capacity = capacity
 
-        self.q_net = RQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
-        self.target_q_net = RQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
+        self.q_net = LSTMQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
+        self.target_q_net = LSTMQNet(self.state_space, self.action_space, hidden_space=self.hidden_space).to(self.device)
         self.target_q_net.load_state_dict(self.q_net.state_dict())
 
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=self.lr)
@@ -47,19 +47,19 @@ class RDQN(object):
         self.trajectory = []
 
     def get_init_hidden_state(self):
-        return torch.zeros([1, self.hidden_space])
+        return torch.zeros([1, self.hidden_space]), torch.zeros([1, self.hidden_space])
 
-    def act(self, state, h, epsilon=0.1):
+    def act(self, state, h, c, epsilon=0.1):
         if random.random() < epsilon:
             with torch.no_grad():
                 state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-                _, h_prime = self.q_net(state, h)
-            return random.randint(0, self.action_space - 1), h_prime
+                _, h_prime, c_prime = self.q_net(state, h, c)
+            return random.randint(0, self.action_space - 1), h_prime, c_prime
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-                q_values, h_prime = self.q_net(state, h)
-                return torch.argmax(q_values, dim=1).item(), h_prime
+                q_values, h_prime, c_prime = self.q_net(state, h, c)
+                return torch.argmax(q_values, dim=1).item(), h_prime, c_prime
 
     def step(self, state, action, reward, next_state, done):
         self.trajectory.append([state, action, reward, next_state, done])
@@ -81,10 +81,12 @@ class RDQN(object):
             dones = torch.FloatTensor(np.array(dones)).unsqueeze(0).to(self.device)
 
             h = torch.zeros(1, 1, self.hidden_space).to(self.device)
-            q_values, _ = self.q_net(states, h)
+            c = torch.zeros(1, 1, self.hidden_space).to(self.device)
+            q_values, _, _ = self.q_net(states, h, c)
 
             h_target = torch.zeros(1, 1, self.hidden_space).to(self.device)
-            next_q_values, _ = self.target_q_net(next_states, h_target)
+            c_target = torch.zeros(1, 1, self.hidden_space).to(self.device)
+            next_q_values, _, _ = self.target_q_net(next_states, h_target, c_target)
 
             q_value = q_values.gather(2, actions)
             next_q_value, _ = torch.max(next_q_values, dim=2, keepdim=True)
