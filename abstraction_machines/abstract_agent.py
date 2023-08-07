@@ -1,3 +1,4 @@
+import time
 import json
 import random
 import graphviz
@@ -17,6 +18,7 @@ class AbstractAgent:
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
+        self.solve_time = 0
 
         # used to keep track of the level in each episode
         self.level = 0
@@ -25,7 +27,7 @@ class AbstractAgent:
         self.granularity = granularity
         self.monotonic_levels = monotonic_levels
         self.triggers = dict()
-        self.depth = 2
+        self.depth = 1
         self.min_obj = 0
 
     def save_triggers(self, name):
@@ -78,9 +80,13 @@ class AbstractAgent:
                             min_traj_idx = conflict_traj_idx
                             min_traj_len = len(self.trajectories[conflict_traj_idx])
                         else:
-                            if len(self.trajectories[conflict_traj_idx]) < min_traj_len:
-                                min_traj_idx = conflict_traj_idx
-                                min_traj_len = len(self.trajectories[conflict_traj_idx])
+                            # need to figure out why this crashes occasionally. Shouldn't affect learning in general, but we might not always pick the shortest traj
+                            try:
+                                if len(self.trajectories[conflict_traj_idx]) < min_traj_len:
+                                    min_traj_idx = conflict_traj_idx
+                                    min_traj_len = len(self.trajectories[conflict_traj_idx])
+                            except:
+                                continue
                     self.conflict = (min_traj_idx, len(self.trajectories))
         self.trajectory_mapping[(state,action,reward,next_state)].add(len(self.trajectories))
 
@@ -127,7 +133,12 @@ class AbstractAgent:
             self.conflicting_trajectories.append(self.trajectories[self.conflict[0]])
             self.conflicting_trajectories.append(self.trajectories[self.conflict[1]])
             self.AM = AbstractionMachine(self.conflicting_trajectories, granularity=self.granularity, monotonic_levels=self.monotonic_levels)
+            if self.depth == 1:
+                self.depth = 2
+            t1 = time.time()
             self.depth, self.min_obj = self.AM.solve(depth = self.depth, min_obj = self.min_obj)
+            t2 = time.time()
+            self.solve_time += t2-t1
             self.triggers = self.AM.get_triggers()
             self.AMDP = defaultdict(lambda: defaultdict(dict))
             self.QSA = defaultdict(lambda: defaultdict(float))
