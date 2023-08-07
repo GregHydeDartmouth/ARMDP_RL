@@ -14,7 +14,7 @@ from collections import deque
 from office_world import Actions
 from office_world import OfficeWorld
 
-rm = 1
+rm = 4
 actions = [a.value for a in Actions]
 ow = OfficeWorld(rf_id=rm)
 state_space = 12*9
@@ -27,18 +27,18 @@ with open('data/rm_{}_optimal_trajectory.tsv'.format(rm), 'r') as f:
         optimal_trajectory.append([ast.literal_eval(state), int(action), int(reward), ast.literal_eval(next_state), ast.literal_eval(done)])
 
 max_steps = 200
-seed = random.randint(0, 1000)
-print("SEED: {}".format(seed))
-dqn_agent = RDQN(state_space, len(actions), lr=1e-3, tau=0.01, seed=seed)
-sample_optimal_rate = 50
+sample_optimal_rate = 10
 
 trials = 10
 
 all_trials = []
 for t in range(0, trials):
+    seed = random.randint(0, 1000)
+    print("\nSEED: {}".format(seed))
+    dqn_agent = RDQN(state_space, len(actions), lr=1e-3, tau=0.01, seed=seed)
     trial_averages = []
     rewards = deque(maxlen=1000)
-    for i in range(0, 100000):
+    for i in range(0, 50000):
         # sample optimal
         if i % sample_optimal_rate == 0:
             for triple in optimal_trajectory:
@@ -65,7 +65,6 @@ for t in range(0, trials):
         print("\rEpisode: {} Average reward: {}".format(i, reward_avg), end='')
         trial_averages.append(reward_avg)
     all_trials.append(trial_averages)
-    print()
 with open('data/rm_{}_rdqn_reward_averages.csv'.format(rm), 'w', newline='') as f:
     writer = csv.writer(f)
     for trial_averages in all_trials:
