@@ -87,7 +87,7 @@ for t in range(0, trials):
             ep_reward += reward
             if done:
                 break
-            dqn_agent.train()
+        dqn_agent.train()
         rewards.append(ep_reward)
         reward_avg = np.mean(rewards)
         print("\rEpisode: {} Average reward: {}".format(i, reward_avg), end='')
