@@ -5,26 +5,84 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 import matplotlib.pyplot as plt
 
-model_types = ['dqn_w_ab', 'rdqn', 'lstmdqn', 'grudqn'] #, 'dqn_no_ab']
+def get_files_for_rm(rm):
+    file_types = ['dqn_with_ab', 'rdqn', 'lstmdqn', 'grudqn', 'dqn_no_ab']
+    dqn_w_ab = []
+    dqn_no_ab = []
+    rdqn = []
+    grudqn = []
+    lstmdqn = []
+    for file_type in file_types:
+        with open('data/rm_{}_{}_reward_averages.csv'.format(rm, file_type), 'r') as f:
+            reader = csv.reader(f)
+            if file_type == 'dqn_with_ab':
+                for row in reader:
+                    dqn_w_ab.append(row)
+            elif file_type == 'dqn_no_ab':
+                for row in reader:
+                    dqn_no_ab.append(row)
+            elif file_type == 'rdqn':
+                for row in reader:
+                    rdqn.append(row)
+            elif file_type == 'grudqn':
+                for row in reader:
+                    grudqn.append(row)
+            elif file_type == 'lstmdqn':
+                for row in reader:
+                    lstmdqn.append(row)
+    return np.array(dqn_w_ab, dtype=float), np.array(dqn_no_ab, dtype=float), np.array(rdqn, dtype=float), np.array(grudqn, dtype=float), np.array(lstmdqn, dtype=float)
 
-rm_4_models_rewards = []
-for model_type in model_types:
-    trial_rewards = []
-    with open('data/rm_4_{}_reward_averages.csv'.format(model_type), 'r') as f:
-        reader = csv.reader(f)
-        for row in reader:
-            trial_rewards.append(row)
-    rm_4_models_rewards.append(trial_rewards)
 
-for rm_4_model_rewards, model_name in zip(rm_4_models_rewards, model_types):
-    rm_4_model_rewards = np.array(rm_4_model_rewards, dtype=float)
-    column_means = np.mean(rm_4_model_rewards, axis=0)
-    column_stddev = np.std(rm_4_model_rewards, axis=0)
-    i = np.arange(rm_4_model_rewards.shape[1])
-    plt.plot(i, column_means, label=model_name)
-    plt.fill_between(i, column_means - column_stddev, column_means + column_stddev, alpha=0.2)
-    plt.xlabel('Episodes')
-    plt.ylabel('Average Reward')
-    plt.legend()
-plt.axhline(y=0, color='black', linestyle='-', linewidth=1)
-plt.savefig('figures/test.png')
+rm_1_rewards = get_files_for_rm(1)
+rm_2_rewards = get_files_for_rm(2)
+rm_3_rewards = get_files_for_rm(3)
+rm_4_rewards = get_files_for_rm(4)
+rewards = [rm_1_rewards, rm_2_rewards, rm_3_rewards, rm_4_rewards]
+
+fig, axes = plt.subplots(4, 1, figsize=(10, 15))
+for i, r in enumerate(rewards):
+    dqn_abs_i, dqn_no_abs_i, rdqn_i, grudqn_i, lstmdqn_i = r
+
+    # episodes
+    episodes = np.arange(dqn_abs_i.shape[1])
+
+    # dqn w/ abs
+    dqn_abs_i_means = np.mean(dqn_abs_i, axis=0)
+    dqn_abs_i_stds = np.std(dqn_abs_i, axis=0)
+    axes[i].plot(episodes, dqn_abs_i_means, label='dqn_w_abs')
+    axes[i].fill_between(episodes, dqn_abs_i_means-dqn_abs_i_stds, dqn_abs_i_means+dqn_abs_i_stds, alpha=0.2)
+
+    # dqn w/o abs
+    dqn_no_abs_i_means = np.mean(dqn_no_abs_i, axis=0)
+    dqn_no_abs_i_stds = np.std(dqn_no_abs_i, axis=0)
+    axes[i].plot(episodes, dqn_no_abs_i_means, label='dqn_w/o_abs')
+    axes[i].fill_between(episodes, dqn_no_abs_i_means-dqn_no_abs_i_stds, dqn_no_abs_i_means+dqn_no_abs_i_stds, alpha=0.2)
+
+    # rdqn
+    rdqn_i_means = np.mean(rdqn_i, axis=0)
+    rdqn_i_stds = np.std(rdqn_i, axis=0)
+    axes[i].plot(episodes, rdqn_i_means, label='rdqn')
+    axes[i].fill_between(episodes, rdqn_i_means-rdqn_i_stds, rdqn_i_means+rdqn_i_stds, alpha=0.2)
+
+    # grudqn
+    grudqn_i_means = np.mean(grudqn_i, axis=0)
+    grudqn_i_stds = np.std(grudqn_i, axis=0)
+    axes[i].plot(episodes, grudqn_i_means, label='grudqn')
+    axes[i].fill_between(episodes, grudqn_i_means-grudqn_i_stds, grudqn_i_means+grudqn_i_stds, alpha=0.2)
+
+    # lstmdqn
+    lstmdqn_i_means = np.mean(lstmdqn_i, axis=0)
+    lstmdqn_i_stds = np.std(lstmdqn_i, axis=0)
+    axes[i].plot(episodes, lstmdqn_i_means, label='lstmdqn')
+    axes[i].fill_between(episodes, lstmdqn_i_means-lstmdqn_i_stds, lstmdqn_i_means+lstmdqn_i_stds, alpha=0.2)
+
+axes[0].set_ylabel('Task b)')
+axes[1].set_ylabel('Task c)')
+axes[2].set_ylabel('Task d)')
+axes[3].set_ylabel('Task e)')
+axes[3].set_xlabel('Episodes')
+
+lines, labels = axes[0].get_legend_handles_labels()
+fig.legend(lines, labels, loc='upper right')
+
+plt.savefig('figures/exp2_figure.png')

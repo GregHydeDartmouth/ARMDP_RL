@@ -92,6 +92,7 @@ axes[0, 1].set_title('Depths')
 axes[0, 2].set_title('Exemplars')
 axes[0, 3].set_title('Cumulative Solve Time')
 
-
+lines, labels = axes[1,1].get_legend_handles_labels()
+fig.legend(lines, labels, loc='upper right')
 
 plt.savefig('figures/exp1_figure.png')
