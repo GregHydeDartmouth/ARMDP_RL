@@ -5,7 +5,7 @@ from office_world import Actions
 from office_world import OfficeWorld
 from abstraction_machines.abstract_agent import AbstractAgent
 
-rm = 3
+rm = 1
 actions = [a.value for a in Actions]
 ow = OfficeWorld(rf_id=rm)
 max_steps = 200
