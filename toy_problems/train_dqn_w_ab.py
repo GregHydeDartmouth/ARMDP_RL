@@ -14,7 +14,7 @@ from collections import deque
 from office_world import Actions
 from office_world import OfficeWorld
 
-rm = 4
+rm = 1
 granularity = 'state'
 actions = [a.value for a in Actions]
 ow = OfficeWorld(rf_id=rm)

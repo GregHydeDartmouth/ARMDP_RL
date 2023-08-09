@@ -14,7 +14,7 @@ from collections import deque
 from office_world import Actions
 from office_world import OfficeWorld
 
-rm = 4
+rm = 1
 actions = [a.value for a in Actions]
 ow = OfficeWorld(rf_id=rm)
 state_space = 12*9
