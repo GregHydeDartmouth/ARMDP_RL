@@ -4,7 +4,7 @@ from beachworld import Beachworld
 from collections import deque
 
 action_set=['^','v','<','>','o']
-aa = AbstractAgent(action_set, granularity='triple', monotonic_levels=True, learning_rate=0.1, discount_factor = 0.95, exploration_rate = 0.3)
+aa = AbstractAgent(action_set, granularity='triple', monotonic_levels=True, learning_rate=0.1, discount_factor = 0.95, exploration_rate = 0.4)
 BW = Beachworld()
 rewards = deque(maxlen=100)
 

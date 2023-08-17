@@ -4,16 +4,16 @@ class Beachworld():
     def __init__(self):
         x = 1
         self.states = ['shack','beach','exit']
-        self.T = {'shack' : {'^': 'beach',
-                             'v': 'shack',
+        self.T = {'shack' : {'^': 'shack',
+                             'v': 'exit',
                              'o': 'shack',
-                             '<': 'shack',
+                             '<': 'beach',
                              '>': 'shack'},
                   'beach' : {'^': 'beach',
-                             'v': 'shack',
+                             'v': 'beach',
                              'o': 'beach',
                              '<': 'beach',
-                             '>': 'exit'}}
+                             '>': 'shack'}}
         self.sun_counter = 0
         self.position = None
 
