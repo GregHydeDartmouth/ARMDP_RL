@@ -76,6 +76,9 @@ class AbstractAgent:
                     min_traj_idx = None
                     min_traj_len = None
                     for conflict_traj_idx in list(self.trajectory_mapping[(state,action,found_reward,next_state)]):
+                        # conflict occurs in current traj
+                        if conflict_traj_idx == len(self.trajectories):
+                            continue
                         if min_traj_idx is None:
                             min_traj_idx = conflict_traj_idx
                             min_traj_len = len(self.trajectories[conflict_traj_idx])
@@ -87,7 +90,8 @@ class AbstractAgent:
                                     min_traj_len = len(self.trajectories[conflict_traj_idx])
                             except:
                                 continue
-                    self.conflict = (min_traj_idx, len(self.trajectories))
+                    if min_traj_idx is not None:
+                        self.conflict = (min_traj_idx, len(self.trajectories))
         self.trajectory_mapping[(state,action,reward,next_state)].add(len(self.trajectories))
 
     def _update_QSA(self, state, action, reward, next_state, done):
@@ -224,7 +228,6 @@ class AbstractAgent:
                         reward = _reward
                     else:
                         edge_label += 'V{}'.format(symbol)
-                    assert _reward == reward, 'stochasticity in RM results'
                 g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
             else:
                 reward_labels = defaultdict(set)

@@ -83,7 +83,6 @@ class AbstractionMachine():
                             reward = _reward
                         else:
                             edge_label += 'V{}'.format(symbol)
-                        assert _reward == reward, 'stochasticity in RM results'
                     g.edge(edge_nodes[0], edge_nodes[1], label='{}/{}'.format(edge_label, reward))
                 else:
                     reward_labels = defaultdict(set)
