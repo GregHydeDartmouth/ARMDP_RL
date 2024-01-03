@@ -52,31 +52,31 @@ for i, d in enumerate(data):
     reward_devs = np.std(rewards_i, axis=0)
     axes[i,0].plot(episodes, reward_means)
     axes[i,0].fill_between(episodes, reward_means-reward_devs, reward_means+reward_devs, alpha=0.2)
-    axes[i,0].axhline(y=1, color='red', linestyle='-', linewidth=1.5, label='optimal')
+    axes[i,0].axhline(y=1, color='red', linestyle='dotted', linewidth=1.5, label='optimal')
     axes[i,0].axhline(y=0, color='black', linestyle='-', linewidth=1)
 
     # plot depths
     depths_maxs = np.max(depths_i, axis=0)
     depths_mins = np.min(depths_i, axis=0)
     depths_means = np.mean(depths_i, axis=0)
-    axes[i,1].plot(episodes, depths_maxs, label='max')
-    axes[i,1].plot(episodes, depths_mins, label='min')
+    axes[i,1].plot(episodes, depths_maxs, label='max', linestyle = 'dashed')
+    axes[i,1].plot(episodes, depths_mins, label='min', linestyle = 'dashdot')
     axes[i,1].plot(episodes, depths_means, label='avg')
 
     # plot exemplars
     exemplar_maxs = np.max(exemplars_i, axis=0)
     exemplar_mins = np.min(exemplars_i, axis=0)
     exemplar_means = np.mean(exemplars_i, axis=0)
-    axes[i,2].plot(episodes, exemplar_maxs, label='max')
-    axes[i,2].plot(episodes, exemplar_mins, label='min')
+    axes[i,2].plot(episodes, exemplar_maxs, label='max', linestyle = 'dashed')
+    axes[i,2].plot(episodes, exemplar_mins, label='min', linestyle = 'dashdot')
     axes[i,2].plot(episodes, exemplar_means, label='avg')
 
     # plot solve_times
     solve_times_maxs = np.max(solve_times_i, axis=0)
     solve_times_mins = np.min(solve_times_i, axis=0)
     solve_times_means = np.mean(solve_times_i, axis=0)
-    axes[i,3].plot(episodes, solve_times_maxs, label='max')
-    axes[i,3].plot(episodes, solve_times_mins, label='min')
+    axes[i,3].plot(episodes, solve_times_maxs, label='max', linestyle = 'dashed')
+    axes[i,3].plot(episodes, solve_times_mins, label='min', linestyle = 'dashdot')
     axes[i,3].plot(episodes, solve_times_means, label='avg')
 
 axes[0, 0].set_ylabel('Task b)')

@@ -55,25 +55,25 @@ for i, r in enumerate(rewards):
     # dqn w/o abs
     dqn_no_abs_i_means = np.mean(dqn_no_abs_i, axis=0)
     dqn_no_abs_i_stds = np.std(dqn_no_abs_i, axis=0)
-    axes[i].plot(episodes, dqn_no_abs_i_means, label='dqn_w/o_abs')
+    axes[i].plot(episodes, dqn_no_abs_i_means, label='dqn_w/o_abs', marker = 'o', markevery = 2500, markersize = 8)
     axes[i].fill_between(episodes, dqn_no_abs_i_means-dqn_no_abs_i_stds, dqn_no_abs_i_means+dqn_no_abs_i_stds, alpha=0.2)
 
     # rdqn
     rdqn_i_means = np.mean(rdqn_i, axis=0)
     rdqn_i_stds = np.std(rdqn_i, axis=0)
-    axes[i].plot(episodes, rdqn_i_means, label='rdqn')
+    axes[i].plot(episodes, rdqn_i_means, label='rdqn', marker = '^', markevery = 2500, markersize = 8)
     axes[i].fill_between(episodes, rdqn_i_means-rdqn_i_stds, rdqn_i_means+rdqn_i_stds, alpha=0.2)
 
     # grudqn
     grudqn_i_means = np.mean(grudqn_i, axis=0)
     grudqn_i_stds = np.std(grudqn_i, axis=0)
-    axes[i].plot(episodes, grudqn_i_means, label='grudqn')
+    axes[i].plot(episodes, grudqn_i_means, label='grudqn', marker = 's', markevery = 2500, markersize = 8)
     axes[i].fill_between(episodes, grudqn_i_means-grudqn_i_stds, grudqn_i_means+grudqn_i_stds, alpha=0.2)
 
     # lstmdqn
     lstmdqn_i_means = np.mean(lstmdqn_i, axis=0)
     lstmdqn_i_stds = np.std(lstmdqn_i, axis=0)
-    axes[i].plot(episodes, lstmdqn_i_means, label='lstmdqn')
+    axes[i].plot(episodes, lstmdqn_i_means, label='lstmdqn', marker = 'D', markevery = 2500, markersize = 8)
     axes[i].fill_between(episodes, lstmdqn_i_means-lstmdqn_i_stds, lstmdqn_i_means+lstmdqn_i_stds, alpha=0.2)
 
 axes[0].set_ylabel('Task b)')
