@@ -121,7 +121,7 @@ class AbstractAgent:
             max_actions = [a for a in self.actions if self.QSA[state][a] == max_q_value]
             return random.choice(max_actions)
 
-    def reset(self, update_conflicting_trajectories = True, make_graph_on_update=False):
+    def reset(self, update_conflicting_trajectories = True, make_graph_on_update=False, silent=False):
         """
         Resets the trajectory and saves a copy to the list of trajectories.
 
@@ -140,7 +140,7 @@ class AbstractAgent:
             if self.depth == 1:
                 self.depth = 2
             t1 = time.time()
-            self.depth, self.min_obj = self.AM.solve(depth = self.depth, min_obj = self.min_obj)
+            self.depth, self.min_obj = self.AM.solve(depth = self.depth, min_obj = self.min_obj, silent=silent)
             t2 = time.time()
             self.solve_time += t2-t1
             self.triggers = self.AM.get_triggers()

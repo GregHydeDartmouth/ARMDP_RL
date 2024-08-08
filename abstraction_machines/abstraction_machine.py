@@ -120,10 +120,11 @@ class AbstractionMachine():
                                 break
         return triggers
 
-    def solve(self, depth = 2, min_obj = 0):
+    def solve(self, depth = 2, min_obj = 0, silent=False):
         self.depth = depth
         while True:
             conflict_resolver = Model("Conflict Resolver")
+            conflict_resolver.Params.OutputFlag = 1 - silent
 
             transition_ambiguity_dict, reward_ambiguity_dict = self._sum_to_one_constraint(conflict_resolver, depth)
             self._reward_ambiguity_constraint(reward_ambiguity_dict, conflict_resolver)
