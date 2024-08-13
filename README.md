@@ -1,2 +1,2 @@
 # AbstractionMachines
-Library to learn Markov Decision Processes from Non-Markov Decision Processes
+Library to learn Abstract Reward Markov Decision Processes from Non-Markov Decision Processes
