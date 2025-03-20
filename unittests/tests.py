@@ -2,7 +2,7 @@ import unittest
 from abstraction_machines.abstract_machine import AbstractionMachine
 
 class test_abstract_q_learning(unittest.TestCase):
-    def est_powerpoint_problem(self):
+    def test_powerpoint_problem(self):
         actions = {'^' : '0',
                    'v' : '1',
                    '<' : '2',
@@ -51,7 +51,7 @@ class test_abstract_q_learning(unittest.TestCase):
         AM = AbstractionMachine(trajectories)
         AM.resolve_reward_conflicts()
 
-    def est_error(self):
+    def test_error(self):
         actions = {'^': '^',
                    'v': 'v',
                    '<': '<',
@@ -93,7 +93,7 @@ class test_abstract_q_learning(unittest.TestCase):
         AM = AbstractionMachine(trajectories)
         AM.resolve_reward_conflicts(write_file=True, make_graph=True)
 
-    def est_add_trajectories(self):
+    def test_add_trajectories(self):
         actions = {'^': '^',
                    'v': 'v',
                    '<': '<',
@@ -118,7 +118,7 @@ class test_abstract_q_learning(unittest.TestCase):
               ['6', actions['^'], 0.5, '9']]
         AM.add_trajectory(t3, make_graph=True)
 
-    def est_one_traj_at_a_time(self):
+    def test_one_traj_at_a_time(self):
         actions = {'^': 0,
                    'v': 1,
                    '<': 2,
@@ -149,7 +149,7 @@ class test_abstract_q_learning(unittest.TestCase):
         AM.step('[1]',action, 0, '[5]')
         action = AM.get_action('[5]')
 
-    def est_state_granularity(self):
+    def test_state_granularity(self):
         t1 = [['1', '^', 0, '4'],
               ['4', '>', 0, '5'],
               ['5', '^', 0, '8'],
@@ -175,7 +175,7 @@ class test_abstract_q_learning(unittest.TestCase):
         AM = AbstractionMachine([t1, t2, t3, t4], granularity='state', run_q_vals=True, action_set=['^', 'v', '<', '>', 'o'], verbose=True)
         AM.resolve_reward_conflicts(make_graph=True)
 
-    def est_only_solve_conflicting(self):
+    def test_only_solve_conflicting(self):
         AM = AbstractionMachine(granularity='state', run_q_vals=True, action_set=['^', 'v', '<', '>', 'o'], verbose=True)
         t1 = [['1', '^', 0, '4'],
               ['4', '>', 0, '5'],
